@@ -1,7 +1,7 @@
 <launch>
 
   <!-- tf transforms -->
-  <param name="robot_description" textfile="$(find bham_b21_launch)/b21.urdf" />
+  <param name="robot_description" textfile="$(find butler)/launch/bham_b21_launch/b21.urdf" />
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
     <rosparam param="source_list">[ptu/state]</rosparam>
   </node>
