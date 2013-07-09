@@ -7,6 +7,10 @@
 
 *.java~
 *.launch~
+*.yaml~
+
+*.old*
+*.bak*
 
 bin/
 build/
