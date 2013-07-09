@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="butler" type="execute" args="UseKinectLaserScan" name="butler" />
+</launch>
