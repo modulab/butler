@@ -21,3 +21,5 @@ build/
 *.classpath
 *.project
 *.settings
+
+*.log
