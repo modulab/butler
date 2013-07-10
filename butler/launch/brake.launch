@@ -1,3 +1,0 @@
-<launch>
-  <node pkg="butler" type="brake_server.py" name="brake_server" output="screen" />
-</launch>
