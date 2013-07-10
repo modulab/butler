@@ -1,7 +1,7 @@
 <launch>
 
   <!-- Run the map server -->
-  <node name="map_server" pkg="map_server" type="map_server" args="$(find butler)/maps/research_lab2.yaml"/>
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find butler)/maps/research_lab3.yaml"/>
 
 
   <!-- Run localisation -->
