@@ -13,5 +13,6 @@
   <!--include file="$(find butler)/launch/use_kinect_laser_scan.launch" /-->
   <include file="$(find init_ptu)/launch/init_ptu.launch" />
   <include file="$(find butler)/launch/voxel.launch" />
+  <include file="$(find butler)/launch/brake.launch" />
 
 </launch>
