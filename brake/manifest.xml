@@ -1,0 +1,14 @@
+<package>
+  <description brief="butler">
+
+     butler
+
+  </description>
+  <author>Sean Bastable</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/butler</url>
+
+</package>
+
+
