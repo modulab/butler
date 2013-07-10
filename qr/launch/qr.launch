@@ -1,5 +1,5 @@
 <launch>
-  <node pkg="qr" type="execute" args="Markers" name="qr_markers" />
+  <node pkg="qr" type="execute" args="butler.qr.Markers" name="qr_markers" />
   <node pkg="qr" type="execute" args="butler.qr.ReadGoals" name="qr_read" />
 
   <node pkg="qr" type="marker_server" name="qr_marker_server" args="$(arg n)" />

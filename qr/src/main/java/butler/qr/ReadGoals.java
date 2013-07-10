@@ -23,7 +23,7 @@ public class ReadGoals extends AbstractNodeMain {
 	public void onStart(ConnectedNode node) {
 		while (true) {
 			try {
-				BufferedReader in = new BufferedReader(new InputStreamReader(new URL("http://localhost/Commands.txt").openStream()));
+				BufferedReader in = new BufferedReader(new InputStreamReader(new URL("http://bastabls.sytes.net/Commands.txt").openStream()));
 				String line = in.readLine();
 				int currentSequenceNumber = Integer.parseInt(line.split(" ")[0]);
 
