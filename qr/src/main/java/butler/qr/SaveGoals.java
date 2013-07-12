@@ -89,7 +89,7 @@ public class SaveGoals extends AbstractNodeMain {
 
 		try {
 			XMLOutputter xmlOut = new XMLOutputter(Format.getPrettyFormat());
-			xmlOut.output(doc, new FileOutputStream(new File("locations.xml")));
+			xmlOut.output(doc, new FileOutputStream(new File("/home/sean/ROS/butler_workspace/butler/qr/locations.xml")));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
