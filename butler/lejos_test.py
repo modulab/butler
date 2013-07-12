@@ -7,7 +7,7 @@ from nxt_lejos_msgs.msg import DNSCommand
 
 
 def talker():
-    pub = rospy.Publisher('dns_command', DNSCommand)
+    pub = rospy.Publisher('nxt/dns_command', DNSCommand)
     rospy.init_node('talker')
     while not rospy.is_shutdown():
 	
