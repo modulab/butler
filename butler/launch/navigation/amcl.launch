@@ -10,6 +10,7 @@
     <rosparam file="$(find butler)/nav_configs/global_costmap_params.yaml" command="load" />
     <rosparam file="$(find butler)/nav_configs/base_local_planner_params.yaml" command="load" />
     <rosparam file="$(find butler)/nav_configs/move_base_params.yaml" command="load" />
+    <rosparam file="$(find butler)/nav_configs/base_global_planner_params.yaml" command="load" />
     
     <!-- remap topics for b21 -->
     <remap from="/odom" to="/b21/odom"/>

@@ -27,7 +27,7 @@ TrajectoryPlannerROS:
 
 #Washington:
 
-  max_vel_x: 0.1
+  max_vel_x: 0.2
   min_vel_x: 0.05
   max_rotational_vel: 1.0
   min_in_place_rotational_vel: 0.1

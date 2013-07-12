@@ -4,7 +4,7 @@
   <include file="$(find openni_launch)/launch/openni.launch" respawn="true" />
 
   <!-- kinect tracker -->
-  <node pkg="openni_tracker" type="openni_tracker" name="openni_tracker" respawn="true" output="screen" />
+  <!--node pkg="openni_tracker" type="openni_tracker" name="openni_tracker" respawn="true" output="screen" /-->
 
   <!-- kinect to laser scan launch -->
   <!--include file="$(find final_year_project)/launch/kinect_to_laser_scan.launch" respawn="true" /-->
