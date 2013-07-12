@@ -3,7 +3,7 @@
 
   <!-- Run a VoxelGrid filter to clean NaNs and downsample the data -->
   <node pkg="nodelet" type="nodelet" name="voxel_grid" args="load pcl/VoxelGrid pcl_manager" output="screen">
-    <remap from="~input" to="/cloud_throttled" />
+    <remap from="~input" to="/camera/depth/points" />
     <rosparam>
       filter_field_name: z
       filter_limit_min: 0.01
@@ -13,5 +13,5 @@
     </rosparam>
   </node>
 
-  <node pkg="topic_tools" type="throttle" name="throttle" args="messages /camera/depth/points 6 /cloud_throttled" output="screen" />
+  <!--node pkg="topic_tools" type="throttle" name="throttle" args="messages /camera/depth/points 6 /cloud_throttled" output="screen" /-->
 </launch>

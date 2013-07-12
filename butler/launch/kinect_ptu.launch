@@ -1,7 +1,8 @@
 <launch>
 
   <!-- kinect launch --> 
-  <include file="$(find openni_launch)/launch/openni.launch" respawn="true" />
+  <param name="camera/driver/data_skip" value="5"/>
+  <include file="$(find openni_launch)/launch/openni.launch" />
 
   <!-- kinect tracker -->
   <!--node pkg="openni_tracker" type="openni_tracker" name="openni_tracker" respawn="true" output="screen" /-->
