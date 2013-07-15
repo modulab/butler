@@ -14,6 +14,7 @@ import std_msgs.Int32;
 public class ReadGoals extends AbstractNodeMain {
 
 	private int lastSequenceNumber = -1;
+	private Publisher<Int32> intPub;
 
 	@Override
 	public GraphName getDefaultNodeName() {
@@ -21,14 +22,28 @@ public class ReadGoals extends AbstractNodeMain {
 	}
 
 	public void onStart(ConnectedNode node) {
+
+		intPub = node.newPublisher("qr_markers/goal", Int32._TYPE);
+
 		while (true) {
 			try {
-				BufferedReader in = new BufferedReader(new InputStreamReader(new URL("http://bastabls.sytes.net/Commands.txt").openStream()));
+				BufferedReader in = new BufferedReader(new InputStreamReader(new URL("http://localhost/Commands.txt").openStream()));
 				String line = in.readLine();
 				int currentSequenceNumber = Integer.parseInt(line.split(" ")[0]);
 
-				if (currentSequenceNumber > lastSequenceNumber) {
-					newGoal(node, Integer.parseInt(line.split(" ")[1]));
+				if ((currentSequenceNumber > lastSequenceNumber) && (lastSequenceNumber != -1)) {
+					while ((Integer.parseInt(line.split(" ")[1]) != lastSequenceNumber)) {
+						if (in.ready()) {
+							line = in.readLine();
+						} else {
+							throw new Exception("Previous sequence number not found");
+						}
+					}
+					line = in.readLine();
+					while (in.ready() && !(line.equals("EOF"))) {
+						newGoal(node, Integer.parseInt(line.split(" ")[2]));
+						line = in.readLine();
+					}
 				}
 				lastSequenceNumber = currentSequenceNumber;
 
@@ -40,8 +55,6 @@ public class ReadGoals extends AbstractNodeMain {
 	}
 
 	private void newGoal(ConnectedNode node, int goalID) {
-		Publisher<Int32> intPub = node.newPublisher("qr_markers/goal", Int32._TYPE);
-
 		Int32 msg = intPub.newMessage();
 		msg.setData(goalID);
 		intPub.publish(msg);
