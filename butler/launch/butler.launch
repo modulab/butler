@@ -14,5 +14,6 @@
   <include file="$(find init_ptu)/launch/init_ptu.launch" />
   <include file="$(find butler)/launch/voxel.launch" />
   <include file="$(find brake)/launch/brake.launch" />
+  <include file="$(find qr)/launch/qr.launch" />
 
 </launch>
