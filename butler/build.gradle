@@ -1,4 +1,5 @@
 apply plugin: 'java'
+apply plugin: 'eclipse'
 
 // The Maven plugin is only required if your package is used as a library.
 apply plugin: 'maven'
