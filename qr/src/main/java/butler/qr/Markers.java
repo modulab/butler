@@ -53,7 +53,7 @@ public class Markers extends AbstractNodeMain {
 		});
 
 		Subscriber<Int32> goalPointSub = node.newSubscriber("qr_markers/goal", Int32._TYPE);
-		final Publisher<MoveBaseActionGoal> goalPub = node.newPublisher("move_base/goal", MoveBaseActionGoal._TYPE);
+		final Publisher<MoveBaseActionGoal> goalPub = node.newPublisher("butler/goal", MoveBaseActionGoal._TYPE);
 
 		goalPointSub.addMessageListener(new MessageListener<Int32>() {
 
