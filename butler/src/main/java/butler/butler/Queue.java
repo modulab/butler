@@ -21,6 +21,7 @@ public class Queue extends AbstractNodeMain {
 	private Publisher<GoalID> cancelPub;
 	private Publisher<MoveBaseActionGoal> goalPub;
 	private ArrayList<QueueGoal> goals = new ArrayList<QueueGoal>();
+	private MoveBaseActionGoal baseGoal;
 	private static int goalNumber = 0;
 
 	@Override
@@ -40,6 +41,15 @@ public class Queue extends AbstractNodeMain {
 			}
 		});
 
+		Subscriber<MoveBaseActionGoal> baseGoalSub = node.newSubscriber("butler/base_goal", MoveBaseActionGoal._TYPE);
+
+		baseGoalSub.addMessageListener(new MessageListener<MoveBaseActionGoal>() {
+			@Override
+			public void onNewMessage(MoveBaseActionGoal update) {
+				baseGoal = update;
+			}
+		});
+
 		Subscriber<GoalStatusArray> statusSub = node.newSubscriber("move_base/status", GoalStatusArray._TYPE);
 
 		statusSub.addMessageListener(new MessageListener<GoalStatusArray>() {
@@ -56,9 +66,14 @@ public class Queue extends AbstractNodeMain {
 								+ update.getStatusList().get(0).getGoalId().getId());
 						goals.remove(0);
 					} else {
-						System.out.println("Wrong goal ID: " + goals.get(0).getGoal().getGoalId().getId() + " "
+						System.out.println("Waiting for move_base... " + goals.get(0).getGoal().getGoalId().getId() + " "
 								+ update.getStatusList().get(0).getGoalId().getId());
 					}
+
+				}
+
+				if (goals.size() > 0 && update.getStatusList().size() > 0
+						&& update.getStatusList().get(0).getStatus() == GoalStatus.ABORTED) {
 
 				}
 
@@ -114,10 +129,12 @@ public class Queue extends AbstractNodeMain {
 		if (i > 0) {
 			goals.get(i - 1);
 			if (!goals.get(i - 1).equals(newQueueGoal)) {
-				goals.add(i, newQueueGoal);
+				addBaseGoal(i);
+				goals.add(i + 1, newQueueGoal);
 			}
 		} else {
-			goals.add(i, newQueueGoal);
+			addBaseGoal(i);
+			goals.add(i + 1, newQueueGoal);
 		}
 
 		System.out.println("New queue:");
@@ -139,5 +156,25 @@ public class Queue extends AbstractNodeMain {
 		cancelAllGoals();
 		goalPub.publish(goals.get(0).getGoal());
 		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
+	}
+
+	private void addBaseGoal(int i) {
+		if (baseGoal != null) {
+			MoveBaseActionGoal newBaseGoal = goalPub.newMessage();
+			newBaseGoal.getGoalId().setId(goalNumber + "");
+			newBaseGoal.getGoal().getTargetPose().getHeader().setFrameId("map");
+			newBaseGoal.getGoal().getTargetPose().getPose().getPosition()
+					.setX(baseGoal.getGoal().getTargetPose().getPose().getPosition().getX());
+			newBaseGoal.getGoal().getTargetPose().getPose().getPosition()
+					.setY(baseGoal.getGoal().getTargetPose().getPose().getPosition().getY());
+			newBaseGoal.getGoal().getTargetPose().getPose().getOrientation()
+					.setZ(baseGoal.getGoal().getTargetPose().getPose().getOrientation().getZ());
+			newBaseGoal.getGoal().getTargetPose().getPose().getOrientation()
+					.setW(baseGoal.getGoal().getTargetPose().getPose().getOrientation().getW());
+			goalNumber++;
+			goals.add(i, new QueueGoal(newBaseGoal, QueueGoal.BASE_TYPE));
+		} else {
+			System.out.println("Base goal has not been received");
+		}
 	}
 }

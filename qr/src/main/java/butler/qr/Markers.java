@@ -31,6 +31,8 @@ public class Markers extends AbstractNodeMain {
 
 	private InteractiveMarkerInit currentUpdate = null;
 	private File locations = new File("/home/sean/ROS/butler_workspace/butler/qr/locations.xml");
+	private Publisher<MoveBaseActionGoal> goalPub, baseGoalPub;
+	private Log log;
 
 	@Override
 	public GraphName getDefaultNodeName() {
@@ -39,9 +41,12 @@ public class Markers extends AbstractNodeMain {
 
 	@Override
 	public void onStart(ConnectedNode node) {
-		final Log log = node.getLog();
+		log = node.getLog();
 
-		readXML(node);
+		baseGoalPub = node.newPublisher("butler/base_goal", MoveBaseActionGoal._TYPE);
+		baseGoalPub.setLatchMode(true);
+
+		goalPub = node.newPublisher("butler/goal", MoveBaseActionGoal._TYPE);
 
 		Subscriber<InteractiveMarkerInit> markerUpdateSub = node.newSubscriber("marker_server/update_full", InteractiveMarkerInit._TYPE);
 
@@ -52,41 +57,16 @@ public class Markers extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<Int32> goalPointSub = node.newSubscriber("qr_markers/goal", Int32._TYPE);
-		final Publisher<MoveBaseActionGoal> goalPub = node.newPublisher("butler/goal", MoveBaseActionGoal._TYPE);
+		readXML(node);
 
+		sendGoalMessage(0, true);
+
+		Subscriber<Int32> goalPointSub = node.newSubscriber("qr_markers/goal", Int32._TYPE);
 		goalPointSub.addMessageListener(new MessageListener<Int32>() {
 
 			@Override
 			public void onNewMessage(Int32 goalPoint) {
-				MoveBaseActionGoal goalMsg = goalPub.newMessage();
-
-				try {
-
-					while (currentUpdate == null) {
-						log.error("Markers: Waiting for marker update...");
-						Thread.sleep(100);
-					}
-
-					goalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
-
-					boolean valid = false;
-
-					for (int i = 0; i < currentUpdate.getMarkers().size(); i++) {
-						if (currentUpdate.getMarkers().get(i).getName().equals("point " + goalPoint.getData())) {
-							valid = true;
-							goalMsg.getGoal().getTargetPose().setPose(currentUpdate.getMarkers().get(i).getPose());
-						}
-					}
-
-					if (valid) {
-						goalPub.publish(goalMsg);
-					} else {
-						log.error("Failed to find marker " + goalPoint.getData());
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
+				sendGoalMessage(goalPoint.getData());
 			}
 		});
 
@@ -143,5 +123,45 @@ public class Markers extends AbstractNodeMain {
 		} else {
 			System.out.println("Locations file does not exist.");
 		}
+	}
+
+	private void sendGoalMessage(int id) {
+		sendGoalMessage(id, false);
+	}
+
+	private void sendGoalMessage(int id, boolean base) {
+		MoveBaseActionGoal goalMsg = goalPub.newMessage();
+
+		try {
+
+			while (currentUpdate == null) {
+				log.error("Markers: Waiting for marker update...");
+				Thread.sleep(100);
+			}
+
+			goalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+
+			boolean valid = false;
+
+			for (int i = 0; i < currentUpdate.getMarkers().size(); i++) {
+				if (currentUpdate.getMarkers().get(i).getName().equals("point " + id)) {
+					valid = true;
+					goalMsg.getGoal().getTargetPose().setPose(currentUpdate.getMarkers().get(i).getPose());
+				}
+			}
+
+			if (valid) {
+				if (base) {
+					baseGoalPub.publish(goalMsg);
+				} else {
+					goalPub.publish(goalMsg);
+				}
+			} else {
+				log.error("Failed to find marker " + id);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 	}
 }
