@@ -19,12 +19,6 @@ import std_msgs.Empty;
 public class Relocalise extends AbstractNodeMain {
 
 	private PoseWithCovarianceStamped currentLocation = null;
-	// Lab
-	// private Point2D.Double p1 = new Point2D.Double(-2.644, 2.413), p2 = new
-	// Point2D.Double(-0.169, -2.962), p3 = new Point2D.Double(14.781,
-	// 10.260), p4 = new Point2D.Double(17.259, 5.105), p1b = null;
-
-	// LG
 	private Point2D p1, p2, p3, p4, p1b = null;
 	private Publisher<PoseWithCovarianceStamped> initialPosePub;
 	private double mapRotation = 0;
