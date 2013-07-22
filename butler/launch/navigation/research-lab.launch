@@ -1,4 +1,12 @@
 <launch>
+  <param name="butler/map/p1a" value="-2.644" type="double" />
+  <param name="butler/map/p1b" value="2.413" type="double" />
+  <param name="butler/map/p2a" value="-0.169" type="double" />
+  <param name="butler/map/p2b" value="-2.962" type="double" />
+  <param name="butler/map/p3a" value="14.781" type="double" />
+  <param name="butler/map/p3b" value="10.260" type="double" />
+  <param name="butler/map/p4a" value="17.259" type="double" />
+  <param name="butler/map/p4b" value="5.105" type="double" />
 
   <!-- Run the map server -->
   <node name="map_server" pkg="map_server" type="map_server" args="$(find butler)/maps/research_lab3.yaml"/>

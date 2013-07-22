@@ -10,6 +10,7 @@ import org.ros.message.MessageListener;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
 import org.ros.node.ConnectedNode;
+import org.ros.node.parameter.ParameterTree;
 import org.ros.node.topic.Publisher;
 import org.ros.node.topic.Subscriber;
 
@@ -24,8 +25,7 @@ public class Relocalise extends AbstractNodeMain {
 	// 10.260), p4 = new Point2D.Double(17.259, 5.105), p1b = null;
 
 	// LG
-	private Point2D.Double p1 = new Point2D.Double(-1.149, 5.108), p2 = new Point2D.Double(-13.040, -6.069), p3 = new Point2D.Double(
-			15.486, -13.611), p4 = new Point2D.Double(2.832, -24.263), p1b = null;
+	private Point2D p1, p2, p3, p4, p1b = null;
 	private Publisher<PoseWithCovarianceStamped> initialPosePub;
 	private double mapRotation = 0;
 	private Rectangle2D validArea = null;
@@ -37,6 +37,7 @@ public class Relocalise extends AbstractNodeMain {
 
 	@Override
 	public void onStart(ConnectedNode node) {
+		loadParams(node);
 		calculateMapRotation();
 		Subscriber<PoseWithCovarianceStamped> locationSub = node.newSubscriber("amcl_pose", PoseWithCovarianceStamped._TYPE);
 		locationSub.addMessageListener(new MessageListener<PoseWithCovarianceStamped>() {
@@ -110,5 +111,13 @@ public class Relocalise extends AbstractNodeMain {
 		validArea.add(at.transform(p2, p1b));
 		validArea.add(at.transform(p3, p1b));
 		validArea.add(at.transform(p4, p1b));
+	}
+
+	private void loadParams(ConnectedNode node) {
+		ParameterTree params = node.getParameterTree();
+		p1 = new Point2D.Double(params.getDouble("/butler/map/p1a"), params.getDouble("/butler/map/p1b"));
+		p2 = new Point2D.Double(params.getDouble("/butler/map/p2a"), params.getDouble("/butler/map/p2b"));
+		p3 = new Point2D.Double(params.getDouble("/butler/map/p3a"), params.getDouble("/butler/map/p3b"));
+		p4 = new Point2D.Double(params.getDouble("/butler/map/p4a"), params.getDouble("/butler/map/p4b"));
 	}
 }
