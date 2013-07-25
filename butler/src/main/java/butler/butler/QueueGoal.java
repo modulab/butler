@@ -7,6 +7,7 @@ public class QueueGoal {
 	public final static int QR_TYPE = 0;
 	public final static int RANDOM_TYPE = 1;
 	public final static int BASE_TYPE = 2;
+	public final static int RECOVERY_TYPE = 3;
 
 	public final static int STOPPED_STATUS = 0;
 	public final static int RUNNING_STATUS = 1;

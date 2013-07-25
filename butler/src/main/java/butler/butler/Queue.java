@@ -1,16 +1,26 @@
 package butler.butler;
 
+import geometry_msgs.PoseWithCovarianceStamped;
+
 import java.util.ArrayList;
 
 import move_base_msgs.MoveBaseActionGoal;
 
+import org.ros.exception.RemoteException;
+import org.ros.exception.ServiceNotFoundException;
 import org.ros.message.MessageListener;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
 import org.ros.node.ConnectedNode;
+import org.ros.node.service.ServiceClient;
+import org.ros.node.service.ServiceResponseListener;
 import org.ros.node.topic.Publisher;
 import org.ros.node.topic.Subscriber;
 
+import std_msgs.Empty;
+import talker.Speach;
+import talker.SpeachRequest;
+import talker.SpeachResponse;
 import actionlib_msgs.GoalID;
 import actionlib_msgs.GoalStatus;
 import actionlib_msgs.GoalStatusArray;
@@ -23,6 +33,11 @@ public class Queue extends AbstractNodeMain {
 	private ArrayList<QueueGoal> goals = new ArrayList<QueueGoal>();
 	private MoveBaseActionGoal baseGoal;
 	private static int goalNumber = 0;
+	private boolean waitForDrinks = false, recoveryAttempted = false;
+	private PoseWithCovarianceStamped currentLocation;
+	private int recoveryNumber = 90;
+	private ConnectedNode node;
+	private final boolean GO_TO_BASE = false;
 
 	@Override
 	public GraphName getDefaultNodeName() {
@@ -30,7 +45,16 @@ public class Queue extends AbstractNodeMain {
 	}
 
 	@Override
-	public void onStart(ConnectedNode node) {
+	public void onStart(final ConnectedNode node) {
+		this.node = node;
+		Subscriber<PoseWithCovarianceStamped> locationSub = node.newSubscriber("amcl_pose", PoseWithCovarianceStamped._TYPE);
+
+		locationSub.addMessageListener(new MessageListener<PoseWithCovarianceStamped>() {
+			@Override
+			public void onNewMessage(PoseWithCovarianceStamped location) {
+				currentLocation = location;
+			}
+		});
 
 		Subscriber<MoveBaseActionGoal> goalSub = node.newSubscriber("butler/goal", MoveBaseActionGoal._TYPE);
 
@@ -38,6 +62,15 @@ public class Queue extends AbstractNodeMain {
 			@Override
 			public void onNewMessage(MoveBaseActionGoal update) {
 				addQRGoal(update);
+			}
+		});
+
+		Subscriber<Empty> drinksAddedSub = node.newSubscriber("butler/drinks_added", Empty._TYPE);
+
+		drinksAddedSub.addMessageListener(new MessageListener<Empty>() {
+			@Override
+			public void onNewMessage(Empty update) {
+				waitForDrinks = false;
 			}
 		});
 
@@ -61,9 +94,35 @@ public class Queue extends AbstractNodeMain {
 
 				if (goals.size() > 0 && update.getStatusList().size() > 0
 						&& update.getStatusList().get(0).getStatus() == GoalStatus.SUCCEEDED) {
+					recoveryNumber = 90;
+					System.out.println("c");
 					if (goals.get(0).getGoal().getGoalId().getId().equals(update.getStatusList().get(0).getGoalId().getId())) {
 						System.out.println(goals.get(0).getGoal().getGoalId().getId() + " "
 								+ update.getStatusList().get(0).getGoalId().getId());
+						System.out.println("a");
+
+						if (goals.get(0).getType() != QueueGoal.RECOVERY_TYPE) {
+							recoveryAttempted = false;
+						}
+
+						if (goals.get(0).getType() == QueueGoal.BASE_TYPE) {
+							System.out.println("b");
+							waitForDrinks = true;
+							try {
+								while (waitForDrinks) {
+									Thread.sleep(1000);
+									System.out.println("Waiting for drinks...");
+								}
+								Thread.sleep(3000);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+
+						else if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
+							// speak("Excuse me", node);
+						}
+
 						goals.remove(0);
 					} else {
 						System.out.println("Waiting for move_base... " + goals.get(0).getGoal().getGoalId().getId() + " "
@@ -75,6 +134,15 @@ public class Queue extends AbstractNodeMain {
 				if (goals.size() > 0 && update.getStatusList().size() > 0
 						&& update.getStatusList().get(0).getStatus() == GoalStatus.ABORTED) {
 
+					if (goals.get(0).getGoal().getGoalId().getId().equals(update.getStatusList().get(0).getGoalId().getId())) {
+						if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
+							goals.remove(0);
+						}
+
+						if (recoveryNumber != 0) {
+							executeRecovery();
+						}
+					}
 				}
 
 				lastStatus = update;
@@ -129,12 +197,20 @@ public class Queue extends AbstractNodeMain {
 		if (i > 0) {
 			goals.get(i - 1);
 			if (!goals.get(i - 1).equals(newQueueGoal)) {
-				addBaseGoal(i);
-				goals.add(i + 1, newQueueGoal);
+				if (GO_TO_BASE) {
+					addBaseGoal(i);
+					goals.add(i + 1, newQueueGoal);
+				} else {
+					goals.add(i, newQueueGoal);
+				}
 			}
 		} else {
-			addBaseGoal(i);
-			goals.add(i + 1, newQueueGoal);
+			if (GO_TO_BASE) {
+				addBaseGoal(i);
+				goals.add(i + 1, newQueueGoal);
+			} else {
+				goals.add(i, newQueueGoal);
+			}
 		}
 
 		System.out.println("New queue:");
@@ -153,6 +229,7 @@ public class Queue extends AbstractNodeMain {
 	}
 
 	private void executeGoal() {
+		System.out.println("pub");
 		cancelAllGoals();
 		goalPub.publish(goals.get(0).getGoal());
 		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
@@ -175,6 +252,80 @@ public class Queue extends AbstractNodeMain {
 			goals.add(i, new QueueGoal(newBaseGoal, QueueGoal.BASE_TYPE));
 		} else {
 			System.out.println("Base goal has not been received");
+		}
+	}
+
+	private void executeRecovery() {
+		System.out.println("Attempting recovery... " + recoveryNumber + "%");
+		cancelAllGoals();
+		goals.get(0).setStatus(QueueGoal.STOPPED_STATUS);
+		MoveBaseActionGoal newGoalMsg = goalPub.newMessage();
+		newGoalMsg
+				.getGoal()
+				.getTargetPose()
+				.getPose()
+				.getPosition()
+				.setX(currentLocation.getPose().getPose().getPosition().getX()
+						+ ((goals.get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getX() - currentLocation.getPose()
+								.getPose().getPosition().getX()) * 0.01 * recoveryNumber));
+		newGoalMsg
+				.getGoal()
+				.getTargetPose()
+				.getPose()
+				.getPosition()
+				.setY(currentLocation.getPose().getPose().getPosition().getY()
+						+ ((goals.get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getY() - currentLocation.getPose()
+								.getPose().getPosition().getY()) * 0.01 * recoveryNumber));
+		newGoalMsg.getGoal().getTargetPose().getPose().getOrientation().setW(1.0);
+		newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+		newGoalMsg.getGoalId().setId(goals.get(0).getGoal().getGoalId().getId() + "_rec_" + recoveryNumber);
+		goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
+
+		System.out.println("New queue:");
+		for (QueueGoal qg : goals) {
+			System.out.println(qg.getGoal().getGoal().getTargetPose().getPose().getPosition().getX() + " "
+					+ qg.getGoal().getGoal().getTargetPose().getPose().getPosition().getY());
+		}
+		System.out.println();
+
+		if (recoveryNumber == 90 && recoveryAttempted) {
+			speak("Excuse me");
+		}
+
+		if (recoveryNumber > 10) {
+			recoveryNumber -= 10;
+		} else {
+			recoveryNumber -= 2;
+
+			if (recoveryNumber == 0) {
+				goals.remove(1);
+				System.out.println("Failed to reach goal");
+			}
+		}
+		recoveryAttempted = true;
+	}
+
+	private void speak(String message) {
+		ServiceClient<talker.SpeachRequest, talker.SpeachResponse> serviceClient;
+		try {
+			serviceClient = node.newServiceClient("say", Speach._TYPE);
+
+			final SpeachRequest request = serviceClient.newMessage();
+			std_msgs.String string = (std_msgs.String) node.getTopicMessageFactory().newFromType("std_msgs/String");
+			string.setData(message);
+			request.setText(string);
+			serviceClient.call(request, new ServiceResponseListener<SpeachResponse>() {
+
+				@Override
+				public void onFailure(RemoteException arg0) {
+				}
+
+				@Override
+				public void onSuccess(SpeachResponse arg0) {
+				}
+			});
+		} catch (ServiceNotFoundException e) {
+			e.printStackTrace();
 		}
 	}
 }
