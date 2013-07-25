@@ -17,5 +17,6 @@
   <include file="$(find qr)/launch/qr.launch">
     <arg name="n" value="$(arg n)"/>
   </include>
+  <include file="$(find butler)/launch/talker.launch" />
 
 </launch>
