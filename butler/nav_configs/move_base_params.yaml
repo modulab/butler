@@ -1,1 +1,3 @@
 #  base_global_planner: carrot_planner/CarrotPlanner
+  recovery_behavior_enabled: false
+  controller_frequency: 10.0

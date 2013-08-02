@@ -26,9 +26,9 @@ public class InitPTU extends AbstractNodeMain {
 		JointState ptuCmd = ptuPub.newMessage();
 		ptuCmd.getName().add("head_pan_joint");
 		ptuCmd.getName().add("head_tilt_joint");
-		ptuCmd.setPosition(new double[] { 0, -0.81 });
+		ptuCmd.setPosition(new double[] { 0, -0.30 });
 		ptuCmd.setVelocity(new double[] { 1, 1 });
-		ptuPub.publish(ptuCmd);
+		//ptuPub.publish(ptuCmd);
 
 		try {
 			Thread.sleep(1000);
@@ -37,6 +37,7 @@ public class InitPTU extends AbstractNodeMain {
 		}
 
 		ptuCmd.setPosition(new double[] { 0, -0.82 });
+//		ptuCmd.setPosition(new double[] { 0, -0.60 });
 		ptuCmd.setVelocity(new double[] { 1, 1 });
 		ptuPub.publish(ptuCmd);
 	}

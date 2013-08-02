@@ -2,12 +2,23 @@
   <node pkg="nodelet" type="nodelet" name="pcl_manager" args="manager" output="screen" />
 
   <!-- Run a VoxelGrid filter to clean NaNs and downsample the data -->
-  <node pkg="nodelet" type="nodelet" name="voxel_grid" args="load pcl/VoxelGrid pcl_manager" output="screen">
+  <node pkg="nodelet" type="nodelet" name="voxel_grid_kinect" args="load pcl/VoxelGrid pcl_manager" output="screen">
     <remap from="~input" to="/camera/depth/points" />
     <rosparam>
       filter_field_name: z
       filter_limit_min: 0.01
       filter_limit_max: 2
+      filter_limit_negative: False
+      leaf_size: 0.01
+    </rosparam>
+  </node>
+
+  <node pkg="nodelet" type="nodelet" name="voxel_grid_xtion" args="load pcl/VoxelGrid pcl_manager" output="screen">
+    <remap from="~input" to="/xtion/depth/points" />
+    <rosparam>
+      filter_field_name: z
+      filter_limit_min: 0.01
+      filter_limit_max: 0.92
       filter_limit_negative: False
       leaf_size: 0.01
     </rosparam>

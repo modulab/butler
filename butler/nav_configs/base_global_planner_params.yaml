@@ -1,3 +1,4 @@
 
 NavfnROS:
-  default_tolerance: 2.00
+  default_tolerance: 0.4
+  allow_unknown: false

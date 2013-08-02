@@ -60,7 +60,7 @@ public class Brake extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<PointCloud2> kinectSub = node.newSubscriber("voxel_grid/output", PointCloud2._TYPE);
+		Subscriber<PointCloud2> kinectSub = node.newSubscriber("voxel_grid_kinect/output", PointCloud2._TYPE);
 
 		kinectSub.addMessageListener(new MessageListener<PointCloud2>() {
 			@Override
