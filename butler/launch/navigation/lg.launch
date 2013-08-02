@@ -9,7 +9,13 @@
   <param name="butler/map/p4b" value="-24.263" type="double" />
 
   <!-- Run the map server -->
-  <node name="map_server" pkg="map_server" type="map_server" args="$(find butler)/maps/lg2.yaml"/>
+
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find butler)/maps/lg2.yaml" />
+
+  <node name="map_server_obstacles" pkg="map_server" type="map_server" args="$(find butler)/maps/lg2_obstacles.yaml" >
+    <remap from="map" to="map_obstacles/map" />
+    <remap from="map_metadata" to="map_obstacles/map_metadata" />
+  </node>
 
   <!-- Run localisation -->
   <include file="$(find butler)/launch/navigation/amcl.launch" />
