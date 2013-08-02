@@ -1,0 +1,16 @@
+<package>
+  <description brief="butler_msgs">
+
+     butler_msgs
+
+  </description>
+  <author>Sean Bastable</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/butler_msgs</url>
+  <depend package="geometry_msgs"/>
+  <depend package="std_msgs"/>
+
+</package>
+
+

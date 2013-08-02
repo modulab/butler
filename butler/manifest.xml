@@ -10,8 +10,11 @@
   <url>http://ros.org/wiki/butler</url>
 
   <depend package="dynamic_reconfigure" />
-  <depend package="nxt_lejos_msgs" />
+  <depend package="tf" />
+  <depend package="costmap_2d" />
+  <depend package="navfn" />
   <depend package="talker" />
+  <depend package="geometry_msgs" />
 
 </package>
 

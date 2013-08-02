@@ -16,7 +16,7 @@
   <url>http://ros.org/wiki/nxt_lejos</url>
   <depend stack="common_msgs" /> <!-- nav_msgs, geometry_msgs, sensor_msgs, visualization_msgs -->
   <depend stack="geometry" /> <!-- tf -->
-  <depend stack="nxt" /> <!-- nxt_msgs -->
+  <!--depend stack="nxt" /--> <!-- nxt_msgs -->
   <depend stack="ros" />
   <depend stack="ros_comm" /> <!-- std_msgs -->
   <depend stack="ros_tutorials" /> <!-- turtlesim -->

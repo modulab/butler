@@ -1,6 +1,8 @@
 package butler.butler;
 
+import geometry_msgs.PoseArray;
 import geometry_msgs.PoseWithCovarianceStamped;
+import geometry_msgs.Twist;
 
 import java.util.ArrayList;
 
@@ -30,6 +32,7 @@ public class Queue extends AbstractNodeMain {
 	private GoalStatusArray lastStatus;
 	private Publisher<GoalID> cancelPub;
 	private Publisher<MoveBaseActionGoal> goalPub;
+	private Publisher<PoseArray> butlerGoalPub;
 	private ArrayList<QueueGoal> goals = new ArrayList<QueueGoal>();
 	private MoveBaseActionGoal baseGoal;
 	private static int goalNumber = 0;
@@ -38,6 +41,8 @@ public class Queue extends AbstractNodeMain {
 	private int recoveryNumber = 90;
 	private ConnectedNode node;
 	private final boolean GO_TO_BASE = false;
+	private String validGoal = "";
+	private String invalidGoal = "";
 
 	@Override
 	public GraphName getDefaultNodeName() {
@@ -53,6 +58,35 @@ public class Queue extends AbstractNodeMain {
 			@Override
 			public void onNewMessage(PoseWithCovarianceStamped location) {
 				currentLocation = location;
+			}
+		});
+
+		Subscriber<std_msgs.String> plannerSub = node.newSubscriber("butler/planner/valid_goal", std_msgs.String._TYPE);
+
+		plannerSub.addMessageListener(new MessageListener<std_msgs.String>() {
+			@Override
+			public void onNewMessage(std_msgs.String update) {
+				validGoal = update.getData();
+			}
+		});
+
+		Subscriber<std_msgs.String> plannerInvalidSub = node.newSubscriber("butler/planner/invalid_goal", std_msgs.String._TYPE);
+
+		plannerInvalidSub.addMessageListener(new MessageListener<std_msgs.String>() {
+			@Override
+			public void onNewMessage(std_msgs.String update) {
+				invalidGoal = update.getData();
+			}
+		});
+
+		Subscriber<Twist> velSub = node.newSubscriber("b21/cmd_vel", Twist._TYPE);
+
+		velSub.addMessageListener(new MessageListener<Twist>() {
+			@Override
+			public void onNewMessage(Twist update) {
+				if (!zeroVelocity(update)) {
+					recoveryNumber = 90;
+				}
 			}
 		});
 
@@ -140,7 +174,7 @@ public class Queue extends AbstractNodeMain {
 						}
 
 						if (recoveryNumber != 0) {
-							executeRecovery();
+							executeRecovery2();
 						}
 					}
 				}
@@ -150,6 +184,7 @@ public class Queue extends AbstractNodeMain {
 		});
 
 		goalPub = node.newPublisher("move_base/goal", MoveBaseActionGoal._TYPE);
+		butlerGoalPub = node.newPublisher("butler/planner/goal", PoseArray._TYPE);
 		cancelPub = node.newPublisher("move_base/cancel", GoalID._TYPE);
 
 		try {
@@ -232,6 +267,15 @@ public class Queue extends AbstractNodeMain {
 		System.out.println("pub");
 		cancelAllGoals();
 		goalPub.publish(goals.get(0).getGoal());
+
+		// PoseArray planMsg = butlerGoalPub.newMessage();
+		// planMsg.getPoses().add(currentLocation.getPose().getPose());
+		// planMsg.getPoses().add(
+		// goals.get(0).getGoal().getGoal().getTargetPose().getPose());
+		// planMsg.getHeader().setFrameId(
+		// goals.get(0).getGoal().getGoalId().getId());
+		// butlerGoalPub.publish(planMsg);
+
 		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
 	}
 
@@ -253,6 +297,95 @@ public class Queue extends AbstractNodeMain {
 		} else {
 			System.out.println("Base goal has not been received");
 		}
+	}
+
+	private void executeRecovery2() {
+		System.out.println("Attempting recovery... " + recoveryNumber + "%");
+		cancelAllGoals();
+		goals.get(0).setStatus(QueueGoal.STOPPED_STATUS);
+		MoveBaseActionGoal newGoalMsg = goalPub.newMessage();
+		newGoalMsg
+				.getGoal()
+				.getTargetPose()
+				.getPose()
+				.getPosition()
+				.setX(currentLocation.getPose().getPose().getPosition().getX()
+						+ ((goals.get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getX() - currentLocation.getPose()
+								.getPose().getPosition().getX()) * 0.01 * recoveryNumber));
+		newGoalMsg
+				.getGoal()
+				.getTargetPose()
+				.getPose()
+				.getPosition()
+				.setY(currentLocation.getPose().getPose().getPosition().getY()
+						+ ((goals.get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getY() - currentLocation.getPose()
+								.getPose().getPosition().getY()) * 0.01 * recoveryNumber));
+		newGoalMsg.getGoal().getTargetPose().getPose().getOrientation().setW(1.0);
+		newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+		newGoalMsg.getGoalId().setId(goals.get(0).getGoal().getGoalId().getId() + "_rec_" + recoveryNumber);
+
+		PoseArray planMsg = butlerGoalPub.newMessage();
+		planMsg.getPoses().add(currentLocation.getPose().getPose());
+		planMsg.getPoses().add(newGoalMsg.getGoal().getTargetPose().getPose());
+		planMsg.getHeader().setFrameId(newGoalMsg.getGoalId().getId());
+		butlerGoalPub.publish(planMsg);
+
+		boolean publish = false;
+		validGoal = "";
+		invalidGoal = "";
+
+		for (int i = 0; i < 50; i++) {
+			System.out.println(validGoal + ":" + invalidGoal);
+			if (validGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
+				publish = true;
+				break;
+			} else if (invalidGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
+				break;
+			}
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (publish) {
+			goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
+			System.out.println("Publishing: " + newGoalMsg.getGoalId().getId());
+		}
+
+		System.out.println("New queue:");
+		for (QueueGoal qg : goals) {
+			System.out.println(qg.getGoal().getGoal().getTargetPose().getPose().getPosition().getX() + " "
+					+ qg.getGoal().getGoal().getTargetPose().getPose().getPosition().getY());
+		}
+		System.out.println();
+
+		if (recoveryNumber == 90 && recoveryAttempted) {
+			speak("Excuse me");
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (recoveryNumber > 10) {
+			recoveryNumber -= 10;
+		} else {
+			recoveryNumber -= 2;
+
+			if (recoveryNumber == 0) {
+				if (publish) {
+					goals.remove(1);
+				} else {
+					goals.remove(0);
+				}
+				System.out.println("Failed to reach goal");
+			}
+		}
+		recoveryAttempted = true;
 	}
 
 	private void executeRecovery() {
@@ -327,5 +460,10 @@ public class Queue extends AbstractNodeMain {
 		} catch (ServiceNotFoundException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private boolean zeroVelocity(Twist twist) {
+		return twist.getAngular().getX() == 0 && twist.getAngular().getY() == 0 && twist.getAngular().getZ() == 0
+				&& twist.getLinear().getX() == 0 && twist.getLinear().getY() == 0 && twist.getLinear().getZ() == 0;
 	}
 }

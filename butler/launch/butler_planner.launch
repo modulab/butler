@@ -1,0 +1,16 @@
+<launch>
+
+  <!--- Run AMCL using differential drive version, as B21 can't move sideways -->
+  <!--include file="$(find butler)/launch/navigation/amcl_hamzah.launch" /-->
+  
+  <node pkg="butler" type="planner" respawn="false" name="butler_planner" output="screen"> 
+    <rosparam file="$(find butler)/nav_configs/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find butler)/nav_configs/global_costmap_params.yaml" command="load"/>
+    <rosparam file="$(find butler)/nav_configs/base_global_planner_params.yaml" command="load" />
+    
+    <!-- remap topics for b21 -->
+    <remap from="/odom" to="/b21/odom"/>
+    <remap from="/cmd_vel" to="/b21/cmd_vel"/>
+  </node>
+
+</launch>
