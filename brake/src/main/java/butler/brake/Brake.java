@@ -182,6 +182,5 @@ public class Brake extends AbstractNodeMain {
 		newBrakeMsg.setData(true);
 		brakePub.publish(newBrakeMsg);
 		brakesLastApplied = System.nanoTime();
-		braked = true;
 	}
 }
