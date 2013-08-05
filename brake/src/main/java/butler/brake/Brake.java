@@ -19,11 +19,10 @@ import actionlib_msgs.GoalStatusArray;
 
 public class Brake extends AbstractNodeMain {
 
-	private long lastLaser, lastPTU, lastKinect, lastMoveBase, lastOdom, lastVel, brakesLastApplied;
+	private long lastLaser, lastPTU, lastKinect, lastMoveBase, lastOdom, lastVel, brakesLastApplied, lastXtion;
 	private final long LASER_FAILURE_THRESHOLD = 500000000, PTU_FAILURE_THRESHOLD = 500000000, KINECT_FAILURE_THRESHOLD = 1000000000,
-			MOVE_BASE_FAILURE_THRESHOLD = 500000000, VEL_FAILURE_THRESHOLD = 1500000000, ODOM_FAILURE_THRESHOLD = 500000000,
-			BRAKE_THRESHOLD = 5000000000l;
-	private boolean braked;
+			XTION_FAILURE_THRESHOLD = 1000000000, MOVE_BASE_FAILURE_THRESHOLD = 500000000, VEL_FAILURE_THRESHOLD = 1500000000,
+			ODOM_FAILURE_THRESHOLD = 500000000, BRAKE_THRESHOLD = 5000000000l;
 	private Publisher<Bool> brakePub;
 	private Publisher<Twist> velPub;
 	private Odometry lastOdomMsg = null;
@@ -69,6 +68,15 @@ public class Brake extends AbstractNodeMain {
 			}
 		});
 
+		Subscriber<PointCloud2> xtionSub = node.newSubscriber("voxel_grid_xtion/output", PointCloud2._TYPE);
+
+		xtionSub.addMessageListener(new MessageListener<PointCloud2>() {
+			@Override
+			public void onNewMessage(PointCloud2 update) {
+				lastXtion = System.nanoTime();
+			}
+		});
+
 		Subscriber<GoalStatusArray> moveBaseSub = node.newSubscriber("move_base/status", GoalStatusArray._TYPE);
 
 		moveBaseSub.addMessageListener(new MessageListener<GoalStatusArray>() {
@@ -97,17 +105,6 @@ public class Brake extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<Bool> brakeSub = node.newSubscriber("b21/brake_power", Bool._TYPE);
-
-		brakeSub.addMessageListener(new MessageListener<Bool>() {
-			@Override
-			public void onNewMessage(Bool update) {
-				// if (!update.getData())
-				// braked = update.getData();
-				// System.out.println(braked);
-			}
-		});
-
 		try {
 			Thread.sleep(5000);
 		} catch (InterruptedException e1) {
@@ -131,6 +128,12 @@ public class Brake extends AbstractNodeMain {
 				else if (System.nanoTime() - lastKinect > KINECT_FAILURE_THRESHOLD) {
 
 					System.out.println("Kinect messages not received for over 1000ms. Braking.");
+					brake();
+				}
+
+				else if (System.nanoTime() - lastXtion > XTION_FAILURE_THRESHOLD) {
+
+					System.out.println("Xtion messages not received for over 1000ms. Braking.");
 					brake();
 				}
 
