@@ -6,3 +6,10 @@ global_costmap:
   update_frequency: 5.0
   static_map: true
   transform_tolerance: 0.4 #0.3
+
+global_costmap_no_sensor:
+  global_frame: /map
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  static_map: true
+  transform_tolerance: 0.4 #0.3

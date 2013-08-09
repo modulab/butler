@@ -20,7 +20,7 @@ inflation_radius: 0.40
 #observation_sources: laser_scan_sensor # point_cloud_sensor
 #observation_sources: kinect_to_laser_scan_sensor # point cloud conversion to laser scan
 #observation_sources: combined_laser_scan_sensor # laser scan consisting of base laser and kinect laser scans
-observation_sources: laser_scan_sensor kinect_voxelgrid #xtion_voxelgrid
+#observation_sources: laser_scan_sensor kinect_voxelgrid #xtion_voxelgrid
 #observation_sources: kinect
 #observation_sources: kinect_voxelgrid
 

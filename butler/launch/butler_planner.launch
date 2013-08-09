@@ -5,6 +5,7 @@
   
   <node pkg="butler" type="planner" respawn="false" name="butler_planner" output="screen"> 
     <rosparam file="$(find butler)/nav_configs/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find butler)/nav_configs/costmap_common_params_no_sensor.yaml" command="load" ns="global_costmap_no_sensor" />
     <rosparam file="$(find butler)/nav_configs/global_costmap_params.yaml" command="load"/>
     <rosparam file="$(find butler)/nav_configs/base_global_planner_params.yaml" command="load" />
     

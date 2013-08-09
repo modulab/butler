@@ -1,2 +1,2 @@
-rm -rf bin
+rm -rf bin/execute
 gradle deploy
