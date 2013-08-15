@@ -1,7 +1,11 @@
 package butler.butler;
 
+import geometry_msgs.Point;
+import geometry_msgs.Pose;
 import geometry_msgs.PoseArray;
+import geometry_msgs.PoseStamped;
 import geometry_msgs.PoseWithCovarianceStamped;
+import geometry_msgs.Quaternion;
 import geometry_msgs.Twist;
 
 import java.util.ArrayList;
@@ -68,9 +72,7 @@ public class Queue extends AbstractNodeMain {
 			@Override
 			public void onNewMessage(PoseWithCovarianceStamped location) {
 				currentLocation = location;
-				// System.out.println(Math.toDegrees(location.getPose().getPose().getOrientation().getW()));
-				// System.out.println(location.getPose().getPose().getOrientation().getW());
-				calculateAngle();
+				// calculateQuaternion();
 			}
 		});
 
@@ -146,13 +148,13 @@ public class Queue extends AbstractNodeMain {
 			@Override
 			public void onNewMessage(GoalStatusArray update) {
 				if (goals.size() > 0 && goals.get(0).getStatus() == QueueGoal.STOPPED_STATUS) {
-					// executeGoal();
+					executeGoal();
 
-					if (goals.get(0).getType() == QueueGoal.QR_TYPE) {
-						executeRecovery3();
-					} else {
-						executeGoal();
-					}
+					// if (goals.get(0).getType() == QueueGoal.QR_TYPE) {
+					// executeRecovery3();
+					// } else {
+					// executeGoal();
+					// }
 				}
 
 				if (goals.size() > 0 && update.getStatusList().size() > 0
@@ -212,7 +214,7 @@ public class Queue extends AbstractNodeMain {
 						}
 
 						if (recoveryNumber != 0) {
-							executeRecovery3();
+							executeRecovery4();
 						}
 					}
 				}
@@ -363,7 +365,7 @@ public class Queue extends AbstractNodeMain {
 		newGoalMsg.getGoal().getTargetPose().getPose().getOrientation().setW(1.0);
 		newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
 		newGoalMsg.getGoalId().setId(goals.get(0).getGoal().getGoalId().getId() + "_rec_" + recoveryNumber);
-		calculateAngle();
+		calculateQuaternion();
 
 		PoseArray planMsg = butlerGoalPub.newMessage();
 		planMsg.getPoses().add(currentLocation.getPose().getPose());
@@ -429,6 +431,93 @@ public class Queue extends AbstractNodeMain {
 		recoveryAttempted = true;
 	}
 
+	private void executeRecovery4() {
+
+		if (recoveryNumber == 90) {
+			makeRecoveryPlan();
+		}
+
+		System.out.println("Attempting recovery... " + recoveryNumber + "%");
+		cancelAllGoals();
+		goals.get(0).setStatus(QueueGoal.STOPPED_STATUS);
+		MoveBaseActionGoal newGoalMsg = goalPub.newMessage();
+
+		Path path = currentRecoveryPlan;
+		System.out.println("Path length: " + path.getPoses().size());
+		System.out.println("Trying pose: " + (int) (path.getPoses().size() * 0.01 * recoveryNumber));
+
+		newGoalMsg.getGoal().setTargetPose(path.getPoses().get((int) (path.getPoses().size() * 0.01 * recoveryNumber)));
+
+		newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+		newGoalMsg.getGoalId().setId(goals.get(0).getGoal().getGoalId().getId() + "_rec_" + recoveryNumber);
+		Quaternion q = calculateQuaternion(newGoalMsg.getGoal().getTargetPose().getPose());
+		newGoalMsg.getGoal().getTargetPose().getPose().setOrientation(q);
+
+		PoseArray planMsg = butlerGoalPub.newMessage();
+		planMsg.getPoses().add(currentLocation.getPose().getPose());
+		planMsg.getPoses().add(newGoalMsg.getGoal().getTargetPose().getPose());
+		planMsg.getHeader().setFrameId(newGoalMsg.getGoalId().getId());
+		butlerGoalPub.publish(planMsg);
+
+		boolean publish = false;
+		validGoal = "";
+		invalidGoal = "";
+
+		for (int i = 0; i < 50; i++) {
+			System.out.println(validGoal + ":" + invalidGoal);
+			if (validGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
+				publish = true;
+				break;
+			} else if (invalidGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
+				break;
+			}
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (publish) {
+			goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
+			System.out.println("Publishing: " + newGoalMsg.getGoalId().getId());
+		}
+
+		System.out.println("New queue:");
+		for (QueueGoal qg : goals) {
+			Point p = qg.getGoal().getGoal().getTargetPose().getPose().getPosition();
+			System.out.println(p.getX() + " " + p.getY());
+		}
+		System.out.println();
+
+		if (recoveryNumber == 90 && recoveryAttempted) {
+			speak("Excuse me");
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		if (recoveryNumber > 10) {
+			recoveryNumber -= 10;
+		} else {
+			recoveryNumber -= 2;
+
+			if (recoveryNumber == 0) {
+				// if (publish) {
+				// goals.remove(1);
+				// } else {
+				// goals.remove(0);
+				// }
+				// System.out.println("Failed to reach goal");
+				recoveryNumber = 90;
+			}
+		}
+		recoveryAttempted = true;
+	}
+
 	private void executeRecovery3() {
 		// TODO
 
@@ -437,60 +526,24 @@ public class Queue extends AbstractNodeMain {
 			Path path = currentRecoveryPlan;
 			System.out.println("Path length: " + path.getPoses().size());
 
+			PoseStamped closest = path.getPoses().get(findClosestPose2(path, 0, path.getPoses().size() - 1));
+
 			System.out.println("Attempting recovery... " + recoveryNumber + "%");
 			cancelAllGoals();
 			goals.get(0).setStatus(QueueGoal.STOPPED_STATUS);
 			MoveBaseActionGoal newGoalMsg = goalPub.newMessage();
-			newGoalMsg
-					.getGoal()
-					.getTargetPose()
-					.getPose()
-					.getPosition()
-					.setX(currentLocation.getPose().getPose().getPosition().getX()
-							+ ((goals.get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getX() - currentLocation.getPose()
-									.getPose().getPosition().getX()) * 0.01 * recoveryNumber));
-			newGoalMsg
-					.getGoal()
-					.getTargetPose()
-					.getPose()
-					.getPosition()
-					.setY(currentLocation.getPose().getPose().getPosition().getY()
-							+ ((goals.get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getY() - currentLocation.getPose()
-									.getPose().getPosition().getY()) * 0.01 * recoveryNumber));
-			newGoalMsg.getGoal().getTargetPose().getPose().getOrientation().setW(1.0);
-			newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+			newGoalMsg.getGoal().setTargetPose(closest);
+			closest.getHeader().setFrameId("map");
 			newGoalMsg.getGoalId().setId(goals.get(0).getGoal().getGoalId().getId() + "_rec_" + recoveryNumber);
-			calculateAngle();
+			// calculateAngle();
 
-			PoseArray planMsg = butlerGoalPub.newMessage();
-			planMsg.getPoses().add(currentLocation.getPose().getPose());
-			planMsg.getPoses().add(newGoalMsg.getGoal().getTargetPose().getPose());
-			planMsg.getHeader().setFrameId(newGoalMsg.getGoalId().getId());
-			butlerGoalPub.publish(planMsg);
-
-			boolean publish = false;
-			validGoal = "";
-			invalidGoal = "";
-
-			for (int i = 0; i < 50; i++) {
-				System.out.println(validGoal + ":" + invalidGoal);
-				if (validGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
-					publish = true;
-					break;
-				} else if (invalidGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
-					break;
-				}
-
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
+			boolean publish = validPose(newGoalMsg.getGoal().getTargetPose(), 0);
 
 			if (publish) {
 				goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
 				System.out.println("Publishing: " + newGoalMsg.getGoalId().getId());
+			} else {
+				System.out.println("Invalid goal");
 			}
 
 			System.out.println("New queue:");
@@ -623,25 +676,38 @@ public class Queue extends AbstractNodeMain {
 		recoveryBehaviourPub.publish(recovery);
 	}
 
-	private double calculateAngle() {
-		double rAngle = 360.0 - Math.toDegrees(currentLocation.getPose().getPose().getOrientation().getW());
-		double w = (currentLocation.getPose().getPose().getOrientation().getW());
+	private Quaternion calculateQuaternion() {
+		try {
+			return calculateQuaternion(goals.get(0).getGoal().getGoal().getTargetPose().getPose());
+		} catch (IndexOutOfBoundsException e) {
+			System.out.println("No goal set");
+			calculateQuaternion(baseGoal.getGoal().getTargetPose().getPose());
+		}
+		return goalPub.newMessage().getGoal().getTargetPose().getPose().getOrientation();
+	}
+
+	private Quaternion calculateQuaternion(Pose pose) {
+		// TODO
+
 		double z = (currentLocation.getPose().getPose().getOrientation().getZ());
-		// double x1 = currentLocation.getPose().getPose().getPosition().getX(),
-		// y1 = currentLocation.getPose().getPose().getPosition().getY(), x2 =
-		// goals
-		// .get(0).getGoal().getGoal().getTargetPose().getPose().getPosition().getX(),
-		// y2 = goals.get(0).getGoal().getGoal()
-		// .getTargetPose().getPose().getPosition().getY();
-		// double tAngle = Math.toDegrees(Math.atan((y2 - y1) / (x2 - x1)));
-		// double tAngle2 = Math.toDegrees(Math.atan((x2 - x1) - (y2 - y1)));
-		// System.out.println(rAngle + " " + tAngle + " " + tAngle2 + " " +
-		// (rAngle + tAngle) + " " + (rAngle + tAngle2));
-		// System.out.println(z + " " + w + " " + Math.atan2(0, 1 - (2 * ((z *
-		// z) + (w * w)))));
-		// arcsin(z*2)
-		// System.out.println(Math.toDegrees(2 * Math.asin(z)));
-		return 0;
+		double currentAngle = Math.toDegrees(2 * Math.asin(z));
+		double rAngle = 360.0 - currentAngle;
+		double x1 = currentLocation.getPose().getPose().getPosition().getX(), y1 = currentLocation.getPose().getPose().getPosition().getY(), x2 = pose
+				.getPosition().getX(), y2 = pose.getPosition().getY();
+		double xDiff = x2 - x1, yDiff = y2 - y1;
+
+		double tAngle = Math.toDegrees(Math.atan2(yDiff, xDiff));
+
+		double wGoal = Math.cos(Math.toRadians(tAngle) / 2);
+		double zGoal = Math.sin(Math.toRadians(tAngle) / 2);
+
+		Quaternion q = goalPub.newMessage().getGoal().getTargetPose().getPose().getOrientation();
+
+		q.setW(wGoal);
+		q.setZ(zGoal);
+
+		System.out.println("Quaternion: z:" + zGoal + ", w:" + wGoal);
+		return q;
 	}
 
 	private boolean makeRecoveryPlan() {
@@ -686,5 +752,57 @@ public class Queue extends AbstractNodeMain {
 
 		return planSucceeded;
 
+	}
+
+	private int findClosestPose2(Path path, int start, int end) {
+		int index = findClosestPose(path, start, end);
+
+		if (index > 10) {
+			return index - 10;
+		} else {
+			return 0;
+		}
+	}
+
+	private int findClosestPose(Path path, int start, int end) {
+		System.out.println(start + " " + end);
+		if (start == end) {
+			return start;
+		} else if (start == end - 1) {
+			return start;
+		} else if (validPose(path.getPoses().get((start + end) / 2), (start + end) / 2)) {
+			return findClosestPose(path, (start + end) / 2, end);
+		} else {
+			return findClosestPose(path, start, (start + end) / 2);
+		}
+	}
+
+	private boolean validPose(PoseStamped goal, int index) {
+		PoseArray planMsg = butlerGoalPub.newMessage();
+		planMsg.getPoses().add(currentLocation.getPose().getPose());
+		planMsg.getPoses().add(goal.getPose());
+		planMsg.getHeader().setFrameId(goals.get(0).getGoal().getGoalId() + "_rec_" + index);
+		butlerGoalPub.publish(planMsg);
+
+		boolean valid = false;
+		validGoal = "";
+		invalidGoal = "";
+
+		for (int i = 0; i < 50; i++) {
+			if (validGoal.equalsIgnoreCase(planMsg.getHeader().getFrameId())) {
+				valid = true;
+				break;
+			} else if (invalidGoal.equalsIgnoreCase(planMsg.getHeader().getFrameId())) {
+				break;
+			}
+
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+
+		return valid;
 	}
 }

@@ -107,7 +107,6 @@ navfna.initialize("planner", &costmap);
 costmap_2d::Costmap2DROS costmap_no_sensor("global_costmap_no_sensor", tfa);
 navfn_no_sensor.initialize("planner_no_sensor", &costmap_no_sensor);
 
-ROS_INFO(navfn_no_sensor.allow_unknown_ ? "True" : "False");
 
 validGoalPub = n.advertise<std_msgs::String>("butler/planner/valid_goal", 1000);
 ros::Subscriber goalSub = n.subscribe("butler/planner/goal", 1, goalCallback);

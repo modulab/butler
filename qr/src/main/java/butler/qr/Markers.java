@@ -59,6 +59,12 @@ public class Markers extends AbstractNodeMain {
 
 		readXML(node);
 
+		try {
+			Thread.sleep(15000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
 		sendGoalMessage(0, true);
 
 		Subscriber<Int32> goalPointSub = node.newSubscriber("qr_markers/goal", Int32._TYPE);
@@ -153,6 +159,8 @@ public class Markers extends AbstractNodeMain {
 			if (valid) {
 				if (base) {
 					baseGoalPub.publish(goalMsg);
+					System.out.println("Sending base goal: (" + goalMsg.getGoal().getTargetPose().getPose().getPosition().getX() + ","
+							+ goalMsg.getGoal().getTargetPose().getPose().getPosition().getY());
 				} else {
 					goalPub.publish(goalMsg);
 				}
