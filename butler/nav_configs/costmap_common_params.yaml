@@ -8,11 +8,11 @@ raytrace_range: 2.5 #1.75 #3.0
 
 # Robot footprint size in m for a circular robot. Could alternatively use a polygon "footprint"
 
-robot_radius: 0.26 
+robot_radius: 0.29 
 
 # The inflation radius should be set to the maximum distance from obstacles at which a cost should be incurred. For example, setting the inflation radius at 0.55 meters means that the robot will treat all paths that stay 0.55 meters or more away from obstacles as having equal obstacle cost.
 
-inflation_radius: 0.40
+inflation_radius: 0.35
 
 
 # Defintion of sensor sources
