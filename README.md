@@ -25,17 +25,17 @@ Initialisation
 
 In separate terminals, run:
 
-'''bash
+```bash
 
 rosrun butler 1.sh
 
-'''
+```
 
-'''bash
+```bash
 
 rosrun butler 2.sh
 
-'''
+```
 
 Then press ctrl+c on both.
 
@@ -47,30 +47,30 @@ Launching
 
 The main launch file including drivers and core programs:
 
-'''bash
+```bash
 
 roslaunch butler butler.launch n:=x
 
-'''
+```
 Where x is the number of QR markers
 
 
 Navigation in the lab and area outside:
 
-'''bash
+```bash
 
 roslaunch butler lg.launch
 
-'''
+```
 
 
 Queueing and crowd navigation:
 
-'''bash
+```bash
 
 roslaunch butler queue.launch
 
-'''
+```
 
 This will only accept goals sent throught the QR system, as detailed below.
 
@@ -80,11 +80,11 @@ Queueing
 
 Goals can be added to the queue either by scanning the relevant QR code (not currently working due to a server change) or by running:
 
-'''bash
+```bash
 
 rostopic pub /qr\_markers/goal std\_msgs/Int32 x
 
-'''
+```
 
 Where x is the marker number.
 
