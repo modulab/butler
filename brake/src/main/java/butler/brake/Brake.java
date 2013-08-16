@@ -13,6 +13,7 @@ import org.ros.node.topic.Subscriber;
 
 import sensor_msgs.JointState;
 import sensor_msgs.LaserScan;
+import sensor_msgs.PointCloud;
 import sensor_msgs.PointCloud2;
 import std_msgs.Bool;
 import actionlib_msgs.GoalStatusArray;
@@ -20,6 +21,7 @@ import actionlib_msgs.GoalStatusArray;
 public class Brake extends AbstractNodeMain {
 
 	private long lastLaser, lastPTU, lastKinect, lastMoveBase, lastOdom, lastVel, brakesLastApplied, lastXtion;
+	private PointCloud lastBump = null;
 	private final long LASER_FAILURE_THRESHOLD = 500000000, PTU_FAILURE_THRESHOLD = 500000000, KINECT_FAILURE_THRESHOLD = 1000000000,
 			XTION_FAILURE_THRESHOLD = 1000000000, MOVE_BASE_FAILURE_THRESHOLD = 500000000, VEL_FAILURE_THRESHOLD = 1500000000,
 			ODOM_FAILURE_THRESHOLD = 500000000, BRAKE_THRESHOLD = 5000000000l;
@@ -47,6 +49,15 @@ public class Brake extends AbstractNodeMain {
 			@Override
 			public void onNewMessage(LaserScan update) {
 				lastLaser = System.nanoTime();
+			}
+		});
+
+		Subscriber<PointCloud> bumpSub = node.newSubscriber("b21/bump", PointCloud._TYPE);
+
+		bumpSub.addMessageListener(new MessageListener<PointCloud>() {
+			@Override
+			public void onNewMessage(PointCloud update) {
+				lastBump = update;
 			}
 		});
 
@@ -136,6 +147,13 @@ public class Brake extends AbstractNodeMain {
 					System.out.println("Xtion messages not received for over 1000ms. Braking.");
 					brake();
 				}
+
+				// else if (lastBump != null && lastBump.getPoints().size() > 0)
+				// {
+				//
+				// System.out.println("Crashed! Braking.");
+				// brake();
+				// }
 
 				else if (System.nanoTime() - lastMoveBase > MOVE_BASE_FAILURE_THRESHOLD) {
 
