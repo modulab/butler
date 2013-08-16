@@ -23,3 +23,5 @@ build/
 *.settings
 
 *.log
+
+README.html
