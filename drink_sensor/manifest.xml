@@ -1,0 +1,14 @@
+<package>
+  <description brief="drink_sensor">
+
+	Arduino code to interface switches to serial port, ROS driver node to publish o other nodes.
+
+  </description>
+  <author>Chris</author>
+  <license>BSD</license>
+
+  <depend package="rospy"/>
+
+</package>
+
+
