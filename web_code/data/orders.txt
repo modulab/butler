@@ -1,2 +1,12 @@
 1 42 2beer Chris
 
+2   
+3   
+4 1 1beer 
+5 1 1beer 
+6 1 3beer 
+7 1 3beer Nicholas
+8 1 1beer 
+9 1 1beer 
+10 1 1beer 
+11 1 1beer 
