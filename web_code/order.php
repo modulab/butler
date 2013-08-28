@@ -61,7 +61,7 @@
                                    <link rel="shortcut icon" href="./assets/ico/favicon.png">
   </head>
 <body>
-	<div class="container-narrow">
+	<div class="container-narrow">		
 
 <?php 
 $lock = fopen("data/lock","w+");
@@ -96,6 +96,16 @@ echo "<p class=\"lead\"> Your order has been placed, and will be with you shortl
 
 echo "<p> Can't wait? Watch the queue <a href='monitor.php?id=$order_number'>here</a></p>";
 ?>
+<hr/>
+<p class="masthead">
+		
+			<span class="text-error">ADAM</span> - the 
+			<span class="muted">Autonomous Drinks Administering Machine</span> <small>from <a href="http://www.cs.bham.ac.uk/go/irlab">the Intelligent Robotics Lab</a> in the <a href="http://www.cs.bham.ac.uk/">School of Computer Science</a>, University of Birmingham.</small>
+		
+	</p>
+<p >
+<small>  <a href="about.php">More information</a>
+</p>
 </div>
  <!-- Le javascript
     ================================================== -->

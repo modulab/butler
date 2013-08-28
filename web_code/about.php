@@ -61,41 +61,22 @@
                                    <link rel="shortcut icon" href="./assets/ico/favicon.png">
   </head>
 <body>
-<?PHP  
-$station=$_GET["station"];
-?>
-<div class="container-narrow">
-	<div class="masthead">
-		<h3 class="muted"><?php 
-			echo "Welcome to <span class=\"text-error\">ADAM</span> Station $station";
-		?></h3>
-	</div>
-
-
-
-<form action="order.php" method="post">
-	<fieldset>
-		<legend>Please place your order:</legend>
-<?php
-echo "<input type='hidden' name='station_id' value=$station>";
-?>
-<label>Your name: (optional)</label>
-<input type="text" name="name">
-<label>How many beers? I can't carry more than 3...</label>
-
-<select name="drinks">
-<option value="1beer"selected>1</option>
-<option value="2beer">2</option>
-<option value="3beer" >3</option>
-</select><br>
-
-<button type="submit" class="btn btn-primary">Order</button>
-</fieldset>
-</form>
-<hr/>
-<p >
-  <a href="about.php">More information</a>
-</p>
+	<div class="container-narrow">
+<p class="masthead">
+		
+			<h3><span class="text-error">ADAM</span> - the 
+			<span class="muted">Autonomous Drinks Administering Machine</span> </h3>
+			<p>Is a project from the  <a href="http://www.cs.bham.ac.uk/go/irlab">the Intelligent Robotics Lab</a> in the <a href="http://www.cs.bham.ac.uk/">School of Computer Science</a>, <a href="http://www.birmingham.ac.uk">University of Birmingham</a>.</p>
+			<p>It was made possible thanks to generous support by alumni of the University of Birmingham via the <a href="http://www.birmingham.ac.uk/alumni/giving/index.aspx">Circles of Influence</a> campaign.</p>
+			<p>The work was done by
+				<ul>
+					<li>Sean Bastable - Year 2, B.Sc. Computer Science</li>
+					<li>Peter Brewer - Year 2, B.Sc. Artificial Intelligence and Computer Science</li>
+					<li><a href="http://www.cs.bham.ac.uk/~burbrcjc">Dr Chris Burbridge</a></li>
+					<li><a href="http://www.cs.bham.ac.uk/~nah">Dr Nick Hawes</a></li>
+				</ul>
+			</p>
+	</p>
 </div>
  <!-- Le javascript
     ================================================== -->
