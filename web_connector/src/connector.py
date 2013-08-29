@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-#import rospy
-#import web
-
 try:
     import requests
 except:
@@ -41,7 +38,8 @@ class WebInterface(object):
             orders+="."+str(order)
         result = requests.get(ACTIVE_ORDERS_URL+orders)
         return
-        
+
+
 
 if __name__=="__main__":
  #   rospy.init_node("web_interface_connector")
