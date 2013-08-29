@@ -1,0 +1,19 @@
+<package>
+  <description brief="service_manager">
+
+     service_manager - A GUI to provide the person managing the drinks stand
+	 and overview of the orders.
+
+  </description>
+  <author>Chris Burbridge</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/service_manager</url>
+  <depend package="rospy"/>
+  <depend package="drink_sensor"/>
+  <depend package="web_connector"/>
+  <depend package="std_msgs"/>
+
+</package>
+
+
