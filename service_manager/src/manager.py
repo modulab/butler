@@ -77,7 +77,7 @@ class App(object):
         self.orders_list_store.clear()
         for i in self.orders:
             if i.order_id in self.active_orders:
-                self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ff1111"])
+                self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffdddd"])
             else:
                 self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffffff"])
 
