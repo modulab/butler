@@ -29,3 +29,5 @@ README.html
 */msg_gen
 */srv_gen
 drink_sensor/src/drink_sensor
+
+*.pyc
