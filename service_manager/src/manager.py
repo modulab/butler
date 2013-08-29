@@ -34,15 +34,15 @@ class App(object):
         self.button_box.pack_start(completed_btn)
 
 
-        self.orders_list_store = gtk.ListStore(str, str, str, str)
-        self.orders_list_store.append(["0","0","0","0"])
+        self.orders_list_store = gtk.ListStore(str, str, str, str, str)
+        self.orders_list_store.append(["0","0","0","0", "#FFFFFF"])
         self.orders_view = gtk.TreeView(self.orders_list_store)
         self.orders_view.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
 
 
         for num,i in enumerate(["Order Numer", "Station", "Order", "Customer Name"]):
             renderText = gtk.CellRendererText()
-            column = gtk.TreeViewColumn(i, renderText, text=num)
+            column = gtk.TreeViewColumn(i, renderText, text=num, background=4)
             self.orders_view.append_column(column)
  
         sw.add(self.orders_view)
@@ -69,9 +69,17 @@ class App(object):
         get_orders = rospy.ServiceProxy("get_orders", GetOrders)
         resp = get_orders()
         self.orders = resp.orders
+        rospy.wait_for_service("get_active_orders")
+        get_active_orders = rospy.ServiceProxy("get_active_orders", GetActiveOrders)
+        resp = get_active_orders()
+        self.active_orders = resp.order_ids
+        
         self.orders_list_store.clear()
         for i in self.orders:
-            self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name])
+            if i.order_id in self.active_orders:
+                self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ff1111"])
+            else:
+                self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffffff"])
 
     def refresh_btn_cb(self, btn):
         self.refresh_orders()
