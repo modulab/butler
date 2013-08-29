@@ -8,6 +8,7 @@ except:
 ORDERS_FILE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/data/orders.txt"
 ORDER_COMPLETE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/completed.php?order_number="
 ACTIVE_ORDERS_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/active_order.php?active_orders="
+ACTIVE_ORDERS_FILE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/data/active.txt"
 
 class WebInterface(object):
     def __init__(self):
@@ -38,6 +39,14 @@ class WebInterface(object):
             orders+="."+str(order)
         result = requests.get(ACTIVE_ORDERS_URL+orders)
         return
+
+    def get_active_orders(self):
+        orders = requests.get(ACTIVE_ORDERS_FILE_URL).text
+        if orders.find("<html>") > 0:
+            raise Exception("Orders URL bad: html returned!")
+
+        lines = orders.split("\n")
+        return lines
 
 
 

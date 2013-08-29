@@ -16,6 +16,7 @@ class  RosWebInterface(WebInterface):
     def __init__(self):
         rospy.init_node("RosWebInterface")
         self.get_orders_srv = rospy.Service("get_orders", GetOrders, self.get_orders_handle)
+        self.get_orders_srv = rospy.Service("get_active_orders", GetActiveOrders, self.get_active_orders_handle)
         self.mark_order_complete_srv = rospy.Service("mark_order_complete", MarkOrderComplete,
                                                      self.mark_order_complete_handle)
         self.mark_active_orders_srv = rospy.Service("mark_active_orders", MarkActiveOrders,
@@ -38,6 +39,17 @@ class  RosWebInterface(WebInterface):
             
             resp.orders.append(o)
         return resp
+
+    # ROS service handle for getting the active orders
+    def get_active_orders_handle(self, req):
+        resp = GetActiveOrdersResponse()
+        rospy.loginfo("[WEB INTERFACE] Getting active orders")
+        orders = self.get_active_orders()
+        for order in orders:
+            if order != "":
+                resp.order_ids.append(order)
+        return resp
+
 
     # ROS service handle for marking order active
     def mark_active_orders_handle(self, req):
