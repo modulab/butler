@@ -2,8 +2,9 @@
 import roslib; roslib.load_manifest('service_manager')
 import rospy
 from web_connector.srv import *
-from std_msgs.msg import Float32
-
+from std_msgs.msg import Float32, Bool
+from drink_sensor.msg import DrinksStatus
+from drink_sensor.srv  import *
 
 import pygtk
 import gtk
@@ -51,10 +52,30 @@ class App(object):
  
         sw.add(self.orders_view)
 
+        self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
+                           gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
+        drinks_v=gtk.VBox(False,False)
+        drinks_top_row = gtk.HBox(False,False)
+        drinks_bottom_row = gtk.HBox(False,False)
+        drinks_v.pack_start(drinks_top_row)
+        for i in range(0,4):
+            drinks_top_row.pack_start(self.drink_labels[i])
+        drinks_v.pack_start(drinks_bottom_row)
+        for i in range(4,8):
+            drinks_bottom_row.pack_start(self.drink_labels[i])
+        vbox.pack_start(drinks_v)
+        
         self.main_window.add(vbox)
 
         self.node = rospy.init_node("service_manager")
         self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
+        self.battery_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
+
+        rospy.wait_for_service("request_drinks_status")
+        self.get_drink_status_srv = rospy.ServiceProxy("request_drinks_status",RequestDrinksStatus)
+        status = self.get_drink_status_srv().status.status
+        self.update_drinks_indicator(status)
+        
  
         
     def run(self):
@@ -99,6 +120,19 @@ class App(object):
 
     def battery_cb(self, msg):
         self.battery_label.set_text("Battery voltage=%f"%msg.data)
+
+    def update_drinks_indicator(self, drinks):
+        for status, label in zip(drinks, self.drink_labels):
+            if status:
+                label.set_text("True")
+            else:
+                label.set_text("False")
+            
+        pass
+
+    def drinks_cb(self, msg):
+        self.update_drinks_indicator(msg.status)
+        pass
 
         
 
