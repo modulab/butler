@@ -12,7 +12,8 @@
   <depend package="rospy"/>
   <depend package="drink_sensor"/>
   <depend package="web_connector"/>
-  <depend package="std_msgs"/>
+  <depend package="std_msgs"/>  
+  <depend package="drink_sensor"/>
 
 </package>
 
