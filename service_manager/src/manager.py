@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import roslib; roslib.load_manifest('service_manager')
 import rospy
-#rospy.load_manifest("service_manager")
 from web_connector.srv import *
+from std_msgs.msg import Float32
+
 
 import pygtk
 import gtk
@@ -16,6 +17,9 @@ class App(object):
         self.main_window.set_size_request(400, 200)
         vbox = gtk.VBox(False, 8)
 
+        self.battery_label = gtk.Label("Battery voltage=")
+        vbox.pack_start(self.battery_label,False,False)
+        
         sw = gtk.ScrolledWindow()
         sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
         sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
@@ -50,6 +54,7 @@ class App(object):
         self.main_window.add(vbox)
 
         self.node = rospy.init_node("service_manager")
+        self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
  
         
     def run(self):
@@ -92,11 +97,14 @@ class App(object):
             resp = mark_order_complete(i.order_id)
         self.refresh_orders()
 
+    def battery_cb(self, msg):
+        self.battery_label.set_text("Battery voltage=%f"%msg.data)
+
         
 
 if __name__ == '__main__':
     m = App()
     m.run()
-
+    gtk.gdk.threads_init()
     gtk.main()
 
