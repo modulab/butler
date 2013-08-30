@@ -11,7 +11,7 @@ class DrinkSensor(object):
         rospy.init_node('drink_sensor')
         self._drinks_pub = rospy.Publisher('drinks_status', DrinksStatus)
 
-        serial_port = rospy.get_param("serial_port","/dev/ttyACM1")
+        serial_port = rospy.get_param("serial_port","/dev/ttyACM0")
         self._serial = serial.Serial(serial_port)
 
         self._requested_digital = False
