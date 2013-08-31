@@ -64,6 +64,21 @@
 	<div class="container-narrow">		
 
 <?php 
+// Check that the user got here via drink.php - form data required
+$required = array('station_id', 'drinks', 'name');
+
+// Loop over field names, make sure each one exists and is not empty
+$error = false;
+foreach($required as $field) {
+  if (empty($_POST[$field])) {
+    $error = true;
+  }
+}
+if ($error) {
+   echo "Error";
+   exit;
+}
+
 $lock = fopen("data/lock","w+");
 if (flock($lock, LOCK_EX)) {
 	$station=$_POST["station_id"];
