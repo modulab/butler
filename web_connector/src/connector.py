@@ -26,7 +26,13 @@ class WebInterface(object):
                 continue
             order = line.split(" ")
 #            order = order.extend(["-"] * (4 - len(order)))
-            orders_list.append(order)
+            checked = order[0:3]
+            name=""
+            for i in order[3:]:
+                name = name + i + " "
+            name = name[:-1]
+            checked.append(name)
+            orders_list.append(checked)
         return orders_list
 
     def mark_order_complete(self, order_id):
