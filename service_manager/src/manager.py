@@ -12,61 +12,8 @@ import gobject
 
 class App(object):
     def __init__(self):
-        self.main_window = gtk.Window()
-        self.main_window.set_title("Service Manager")
-        self.main_window.connect('destroy', gtk.main_quit)
-        self.main_window.set_size_request(400, 200)
-        vbox = gtk.VBox(False, 8)
-
-        self.battery_label = gtk.Label("Battery voltage=")
-        vbox.pack_start(self.battery_label,False,False)
+        self._init_gui()
         
-        sw = gtk.ScrolledWindow()
-        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
-        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-        
-        vbox.pack_start(sw, True, True, 0)
-        self.button_box = gtk.HBox()
-
-        vbox.pack_start(self.button_box, False, False)
-
-        refresh_btn = gtk.Button("Refresh")
-        refresh_btn.connect("clicked",self.refresh_btn_cb)
-        self.button_box.pack_start(refresh_btn)
-
-        completed_btn = gtk.Button("Mark Complete")
-        completed_btn.connect("clicked",self.completed_btn_cb)
-        self.button_box.pack_start(completed_btn)
-
-
-        self.orders_list_store = gtk.ListStore(str, str, str, str, str)
-        self.orders_list_store.append(["0","0","0","0", "#FFFFFF"])
-        self.orders_view = gtk.TreeView(self.orders_list_store)
-        self.orders_view.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
-
-
-        for num,i in enumerate(["Order Numer", "Station", "Order", "Customer Name"]):
-            renderText = gtk.CellRendererText()
-            column = gtk.TreeViewColumn(i, renderText, text=num, background=4)
-            self.orders_view.append_column(column)
- 
-        sw.add(self.orders_view)
-
-        self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
-                           gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
-        drinks_v=gtk.VBox(False,False)
-        drinks_top_row = gtk.HBox(False,False)
-        drinks_bottom_row = gtk.HBox(False,False)
-        drinks_v.pack_start(drinks_top_row)
-        for i in range(0,4):
-            drinks_top_row.pack_start(self.drink_labels[i])
-        drinks_v.pack_start(drinks_bottom_row)
-        for i in range(4,8):
-            drinks_bottom_row.pack_start(self.drink_labels[i])
-        vbox.pack_start(drinks_v)
-        
-        self.main_window.add(vbox)
-
         self.node = rospy.init_node("service_manager")
         self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
         self.drink_status_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
@@ -80,7 +27,76 @@ class App(object):
             self.update_drinks_indicator(status)
         except:
             rospy.logwarn("Couldn't call drink sensor service.")
+
+    def _init_gui(self):
+        self.main_window = gtk.Window()
+        self.main_window.set_title("Service Manager")
+        self.main_window.connect('destroy', gtk.main_quit)
+        self.main_window.set_size_request(400, 200)
+        vbox = gtk.VBox(False, 8)
+
+        robot_status = gtk.Frame("Robot status")
+        robot_status_v = gtk.VBox()
+        self.battery_label = gtk.Label("Battery voltage: no data!")
+        self.brake_button = gtk.ToggleButton("Brakes disabled")
+        self.brake_button.connect("clicked",self.brake_button_cb)
+        robot_status_v.pack_start(self.battery_label,False,False)
+        robot_status_v.pack_start(self.brake_button, False, False)
+        robot_status.add(robot_status_v)
+        vbox.pack_start(robot_status, False, False)
+
+        orders_status = gtk.Frame("Orders")
+        orders_status_v = gtk.VBox()
+        sw = gtk.ScrolledWindow()
+        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        orders_status_v.pack_start(sw, True, True, 0)
+
+        button_box = gtk.HBox()
+        refresh_btn = gtk.Button("Refresh")
+        refresh_btn.connect("clicked",self.refresh_btn_cb)
+        button_box.pack_start(refresh_btn)
+
+        completed_btn = gtk.Button("Mark Complete")
+        completed_btn.connect("clicked",self.completed_btn_cb)
+        button_box.pack_start(completed_btn)
+        orders_status_v.pack_start(button_box, False, False)
+
+        self.orders_list_store = gtk.ListStore(str, str, str, str, str)
+        self.orders_list_store.append(["0","0","0","0", "#FFFFFF"])
+        self.orders_view = gtk.TreeView(self.orders_list_store)
+        self.orders_view.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+
+
+        for num,i in enumerate(["Order Numer", "Station", "Order", "Customer Name"]):
+            renderText = gtk.CellRendererText()
+            column = gtk.TreeViewColumn(i, renderText, text=num, background=4)
+            self.orders_view.append_column(column)
  
+        sw.add(self.orders_view)
+        orders_status.add(orders_status_v)
+        vbox.pack_start(orders_status, True, True)
+
+        
+        drinks_status = gtk.Frame("Drink Sensors")
+        self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
+                           gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
+        drinks_v=gtk.VBox(False,False)
+        drinks_top_row = gtk.HBox(False,False)
+        drinks_bottom_row = gtk.HBox(False,False)
+        drinks_v.pack_start(drinks_top_row)
+        for i in range(0,4):
+            drinks_top_row.pack_start(self.drink_labels[i], False, False)
+        drinks_v.pack_start(drinks_bottom_row)
+        for i in range(4,8):
+            drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
+        drinks_status.add(drinks_v)
+        vbox.pack_start(drinks_status, False, False)
+        
+        self.main_window.add(vbox)
+
+
+    
         
     def run(self):
         self.main_window.show_all()
@@ -89,7 +105,6 @@ class App(object):
         (model, pathlist) = self.orders_view.get_selection().get_selected_rows()
         selected = []
         for i in pathlist:
-            print self.orders[i[0]]
             selected.append( self.orders[i[0]] )
         return selected
             
@@ -130,7 +145,7 @@ class App(object):
             rospy.logwarn("web connection services not available.")
 
     def battery_cb(self, msg):
-        self.battery_label.set_text("Battery voltage=%f"%msg.data)
+        self.battery_label.set_text("Battery voltage: %f"%msg.data)
 
     def update_drinks_indicator(self, drinks):
         for status, label in zip(drinks, self.drink_labels):
@@ -142,6 +157,9 @@ class App(object):
 
     def drinks_cb(self, msg):
         self.update_drinks_indicator(msg.status)
+
+    def brake_button_cb(self, btn):
+        pass
 
 
         
