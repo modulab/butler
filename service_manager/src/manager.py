@@ -32,7 +32,7 @@ class App(object):
         self.main_window = gtk.Window()
         self.main_window.set_title("Service Manager")
         self.main_window.connect('destroy', gtk.main_quit)
-        self.main_window.set_size_request(400, 200)
+        self.main_window.set_size_request(800, 600)
         vbox = gtk.VBox(False, 8)
 
         robot_status = gtk.Frame("Robot status")
