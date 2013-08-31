@@ -71,11 +71,15 @@ class App(object):
         self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
         self.battery_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
 
-        rospy.wait_for_service("request_drinks_status")
-        self.get_drink_status_srv = rospy.ServiceProxy("request_drinks_status",RequestDrinksStatus)
-        status = self.get_drink_status_srv().status.status
-        self.update_drinks_indicator(status)
-        
+
+        # Update the drink sensor display
+        try:
+            rospy.wait_for_service("request_drinks_status", 1)
+            self.get_drink_status_srv = rospy.ServiceProxy("request_drinks_status",RequestDrinksStatus)
+            status = self.get_drink_status_srv().status.status
+            self.update_drinks_indicator(status)
+        except:
+            rospy.logwarn("Couldn't call drink sensor service.")
  
         
     def run(self):
@@ -91,32 +95,39 @@ class App(object):
             
 
     def refresh_orders(self):
-        rospy.wait_for_service("get_orders")
-        get_orders = rospy.ServiceProxy("get_orders", GetOrders)
-        resp = get_orders()
-        self.orders = resp.orders
-        rospy.wait_for_service("get_active_orders")
-        get_active_orders = rospy.ServiceProxy("get_active_orders", GetActiveOrders)
-        resp = get_active_orders()
-        self.active_orders = resp.order_ids
-        
-        self.orders_list_store.clear()
-        for i in self.orders:
-            if i.order_id in self.active_orders:
-                self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffdddd"])
-            else:
-                self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffffff"])
+        try:
+            rospy.wait_for_service("get_orders",1)
+            get_orders = rospy.ServiceProxy("get_orders", GetOrders)
+            resp = get_orders()
+            self.orders = resp.orders
+            rospy.wait_for_service("get_active_orders",1)
+            get_active_orders = rospy.ServiceProxy("get_active_orders", GetActiveOrders)
+            resp = get_active_orders()
+            self.active_orders = resp.order_ids
 
+            self.orders_list_store.clear()
+            for i in self.orders:
+                if i.order_id in self.active_orders:
+                    self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffdddd"])
+                else:
+                    self.orders_list_store.append([i.order_id, i.station_id, i.drinks, i.name, "#ffffff"])
+        except:
+            rospy.logwarn("web connection services not available.")
+    
+        
     def refresh_btn_cb(self, btn):
         self.refresh_orders()
 
     def completed_btn_cb(self,btn):
         selected = self.get_selected()
-        rospy.wait_for_service("get_orders")
-        mark_order_complete = rospy.ServiceProxy("mark_order_complete", MarkOrderComplete)
-        for i in selected:
-            resp = mark_order_complete(i.order_id)
-        self.refresh_orders()
+        try:
+            rospy.wait_for_service("get_orders",1)
+            mark_order_complete = rospy.ServiceProxy("mark_order_complete", MarkOrderComplete)
+            for i in selected:
+                resp = mark_order_complete(i.order_id)
+            self.refresh_orders()
+        except:
+            rospy.logwarn("web connection services not available.")
 
     def battery_cb(self, msg):
         self.battery_label.set_text("Battery voltage=%f"%msg.data)
@@ -128,11 +139,10 @@ class App(object):
             else:
                 label.set_text("False")
             
-        pass
 
     def drinks_cb(self, msg):
         self.update_drinks_indicator(msg.status)
-        pass
+
 
         
 
