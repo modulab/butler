@@ -39,6 +39,7 @@ if (flock($lock, LOCK_EX)) {
 } else {
 	echo "Error 42.";	
 }
-header("Location: http://cs.bham.ac.uk/~burbrcjc/bsf2013_2/placed_order.php?name=$name&order=$order_number");
+$encoded_name=urlencode($name);
+header("Location: http://cs.bham.ac.uk/~burbrcjc/bsf2013_2/placed_order.php?name=$encoded_name&order=$order_number");
 exit;
 ?>

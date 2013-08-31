@@ -64,7 +64,7 @@
 	<div class="container-narrow">		
 
 <?php 
-$name=$_GET["name"];
+$name=urldecode($_GET["name"]);
 $order_number=$_GET["order"];
 
 echo "<h1>Great, see you soon $name!</h1>";
