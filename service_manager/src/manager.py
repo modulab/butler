@@ -69,7 +69,7 @@ class App(object):
 
         self.node = rospy.init_node("service_manager")
         self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
-        self.battery_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
+        self.drink_status_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
 
 
         # Update the drink sensor display
