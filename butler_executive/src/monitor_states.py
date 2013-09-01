@@ -4,71 +4,39 @@ import smach
 import smach_ros
 from smach import *
 from smach_ros import *
-
-
-#import topic messages
-#from scitos_msgs.msg import MotorStatus
-#from scitos_msgs.msg import BatteryState
-#from ap_msgs.msg import NavStatus
 from std_msgs.msg import Bool
+from drink_sensor.msg import DrinksStatus
 
-#singleton
 from sm_global_data import GlobalData
 
-
-#this file has the monitor states that will run in parallel with other behaviours, using a smach concurrence container. These states subscribe to a given topic and remain active until their callback returns False.  When that happens they terminate and return outcome 'invalid'
-#Current monitors:
-#bumper status (pressed or not)
-#battery status (low, very_low or charged)
-#stuck trying to rotate on carpet
-
-
-
-
-
-
-
-#true -> continue monitor
-#false -> terminate and state returns 'invalid'
-
+"""
+A generic smach state that monitors a std_msgs/Bool topic, and exits with outcome
+'involid' as soon as true is published on that topic.
+"""
+class BooleanMonitor(smach_ros.MonitorState):
+    def __init__(self,  topic):
+        smach_ros.MonitorState.__init__(self, topic, Bool, self._callback)
     
-def go_button_cb(ud,msg):
-    return not msg.go_button_pressed
+    def _callback(self,  ud,  msg):
+        return not msg.data
 
-            
-def cancel_cb(ud,msg):
-    return not msg.cancel_button_pressed
 
-            
-def force_completion_cb(ud,msg):
-    return not msg.force_completion_button_pressed
 
+"""
+A smach state the monitors the drink sensor for changes. If a change occurs,
+then the sensor publishes a message, triggering this state to exit with outcome
+'invalid'.
+"""
+class StolenBottleMonitor(smach_ros.MonitorState):
+    def __init__(self):
+        smach_ros.MonitorState.__init__(self, "/drinks_status",
+                                        DrinksStatus,
+                                        self._callback)
     
-
-            
-def stolen_bottle_cb(ud,msg):
-    return not msg.bottle_stolen
-
-
-    
-def go_button_monitor():    
-    state=smach_ros.MonitorState("/go_button_topic", Bool, cancel_cb)
-    return state
+    def _callback(self,  ud,  msg):
+        # If anything gets published here, it means something changed on the
+        # tray so no need to check what...
+        return True
     
     
-def cancel_monitor():    
-    state=smach_ros.MonitorState("/cancel_button_topic", Bool, cancel_cb)
-    return state
-  
-        
-        
-def force_completion_monitor():   
-    state=smach_ros.MonitorState("/force_completion_button_topic", Bool, force_completion_cb)
-    return state
     
-
-
-def stolen_bottle_monitor():   
-    state=smach_ros.MonitorState("/stolen_bottle_topic", Bool, stolen_bottle_cb)
-    return state
-  
