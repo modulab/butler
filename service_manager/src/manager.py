@@ -2,7 +2,7 @@
 import roslib; roslib.load_manifest('service_manager')
 import rospy
 from web_connector.srv import *
-from std_msgs.msg import Float32, Bool
+from std_msgs.msg import Float32, Bool, String
 from drink_sensor.msg import DrinksStatus
 from drink_sensor.srv  import *
 
@@ -43,6 +43,8 @@ class App(object):
         robot_status_v.pack_start(self.battery_label,False,False)
         robot_status_v.pack_start(self.brake_button, False, False)
         robot_status.add(robot_status_v)
+        hbox = gtk.HBox()
+        hbox.pack_start(vbox)
         vbox.pack_start(robot_status, False, False)
 
         orders_status = gtk.Frame("Orders")
@@ -92,10 +94,13 @@ class App(object):
             drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
         drinks_status.add(drinks_v)
         vbox.pack_start(drinks_status, False, False)
+
+        # status messages
+        self.status_display =  StatusMessageDisplay("/buttler_status_messages")
+        hbox.pack_start(self.status_display)
+                
         
-        self.main_window.add(vbox)
-
-
+        self.main_window.add(hbox)
     
         
     def run(self):
@@ -162,7 +167,37 @@ class App(object):
         pass
 
 
+class StatusMessageDisplay(gtk.Frame):
+    def __init__(self,  topic):
+        gtk.Frame.__init__(self, "Status Messages")
         
+        self.status_text =  gtk.TextBuffer()
+        self.textbox =  gtk.TextView(self.status_text)
+        self.textbox.set_editable(False)
+        sw = gtk.ScrolledWindow()
+        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        sw.add(self.textbox)
+        self.add(sw)
+        self.scrolling = True
+        
+        self._status_sub =  rospy.Subscriber(topic, String,  self.status_cb)
+    
+    def set_autoscroll(self, scroll_enable):
+        self.scrolling =  scroll_enable
+        
+    def clear(self):
+        self.status_text.set_text("")
+    
+    def add_message(self, message):
+        ti = self.status_text.get_end_iter()
+        self.status_text.insert(ti, message+"\n")
+        if self.scrolling:
+            self.textbox.scroll_to_iter(ti, 0.1)
+            
+    def status_cb(self, msg):
+        self.add_message(msg.data)
+
 
 if __name__ == '__main__':
     m = App()
