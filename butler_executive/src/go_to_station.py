@@ -80,10 +80,10 @@ def steal_aware_go_to_station():
         with monitored_go_to_station:
             smach.Concurrence.add('GO_TO_STATION', GoToStation())
             smach.Concurrence.add('STOLEN_BOTTLE_MONITOR',StolenBottleMonitor())
-            
         
         smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,  transitions={'stolen_bottle':'ASK_BOTTLE_BACK','arrived_to_station':'arrived_to_station'})
         
+    sm.set_initial_state(["MONITORED_GO_TO_STATION"])
         
     return sm
         
