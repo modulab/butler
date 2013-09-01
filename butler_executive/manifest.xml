@@ -1,5 +1,5 @@
 <package>
-  <description brief="sm_executive">
+  <description brief="butler_executive">
 
      Provides a state machine implementing the drink serving behaviour
 
@@ -7,7 +7,7 @@
   <author>Bruno, Chris</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/sm_executive</url>
+  <url></url>
   <depend package="rospy"/>
   <depend package="smach"/>
   <depend package="smach_ros"/>
