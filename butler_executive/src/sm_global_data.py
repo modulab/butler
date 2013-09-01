@@ -4,7 +4,7 @@ import rospy
 class GlobalData(object):
     _instance = None
     def __init__(self):
-        self.n_orders=0
+        self.n_drinks=0
         self.order_list=0
         
     def __new__(cls, *args, **kwargs):

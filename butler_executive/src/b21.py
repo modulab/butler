@@ -73,6 +73,7 @@ class GetAndMarkOrders(smach.State):
                 continue
             carrying += order_weights[order.drinks]
             if carrying > MAX_LOAD:
+                carrying -= order_weights[order.drinks]
                 break
             this_round.append(order)
         
@@ -86,7 +87,8 @@ class GetAndMarkOrders(smach.State):
         self.mark_active_orders(req)
         
         application.app_data.order_list =  this_round
-
+        application.app_data.n_drinks = carrying
+        
         return 'succeeded'        
 
 

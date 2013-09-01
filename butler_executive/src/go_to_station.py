@@ -5,6 +5,8 @@ import smach_ros
 
 from monitor_states import *
 
+from drink_sensor.srv import * 
+
 import sm_global_data as application
 from std_msgs.msg import String
 
@@ -32,15 +34,42 @@ class AskBottleBack(smach.State):
         smach.State.__init__(self,
                              outcomes    = ['bottle_back', 'timeout']
                              )
-        #subscribe to bottle button topic
-        #rospy.sleep(1)
 
+        # service to query drinks status
+        try:
+            rospy.wait_for_service("request_drinks_status", 4)
+        except:
+            rospy.logerr("Can't find drink sensor services!")
+            sys.exit(1)
+            
+        self.request_drinks_status = rospy.ServiceProxy("request_drinks_status",
+                                                        RequestDrinksStatus)
+        
 
     def execute(self, userdata):
         application.app_data.status_publisher.publish("Trying to get bottle back")
         application.app_data.talk_service(String("Please return that drink!"))
-        rospy.sleep(3)
-        return 'bottle_back'
+
+        # 
+        for i in range(200): # 20 seconds timeout
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'timeout'
+            response =  self.request_drinks_status()
+            status =  response.status.status
+            # check the number of drinks
+            n_drinks = sum([1 for x in status if x ])
+            if n_drinks == application.app_data.n_drinks:
+                application.app_data.status_publisher.publish("Got it back!")
+                return 'bottle_back'
+            rospy.sleep(0.1)
+                
+        
+        # should adjust the current orders to only contain the ones
+        # that still have enough drinks for
+        application.app_data.status_publisher.publish("Timed out, lost drinks :-(")
+
+        return 'timeout'
                 
 
 
