@@ -38,7 +38,7 @@ class DrinkSensor(object):
     def publish_state(self):
         state = DrinksStatus()
         for n in range(0,8):
-            state.status.append((self.digital_state >> n) & 1)
+            state.status.append(not ((self.digital_state >> n) & 1))
         self._drinks_pub.publish(state)
 
 
@@ -49,7 +49,7 @@ class DrinkSensor(object):
             rospy.sleep(0.1)
         state = DrinksStatus()
         for n in range(0,8):
-            state.status.append((self.digital_state >> n) & 1)
+            state.status.append(not ((self.digital_state >> n) & 1))
         resp = RequestDrinksStatusResponse(state)
         return resp
         
