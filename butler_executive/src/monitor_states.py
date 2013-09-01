@@ -40,5 +40,23 @@ class StolenBottleMonitor(smach_ros.MonitorState):
         application.app_data.status_publisher.publish("Bottle stolen!")
         return False
     
+
+"""
+A monitor for a remote button. The remote button is enabled and disabled
+by the Bool on enable_topic, and when the remote button is pressed input topic
+receives True, see BooleanMonitor.
+"""
+class ButtonMonitor(BooleanMonitor):
+    def __init__(self, input_topic, enable_topic):
+        BooleanMonitor.__init__(self, input_topic)
+        self._publisher =  rospy.Publisher(enable_topic, Bool, latch=True)
+        
+    def execute(self, ud):
+        self._publisher.publish(True)
+        ret = BooleanMonitor.execute(self, ud)
+        self._publisher.publish(False)
+        return ret
+
+        
     
     

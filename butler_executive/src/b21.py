@@ -7,7 +7,7 @@ import sys
 import smach
 import smach_ros
 
-from monitor_states import BooleanMonitor #go_button_monitor
+from monitor_states import BooleanMonitor, ButtonMonitor #go_button_monitor
 from go_to_station import cancelable_go_to_station
 
 from talker.srv import Speach
@@ -109,7 +109,8 @@ def main():
                                transitions={'succeeded':'GET_AND_MARK_ORDERS'})
         smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(),
                                transitions={'succeeded':'WAIT_FOR_GO'})
-        smach.StateMachine.add('WAIT_FOR_GO', BooleanMonitor('/go_button'),
+        smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go/cb',
+                                                            '/remote_buttons/go/enable'),
                                transitions={'invalid':'CANCELABLE_GO_TO_STATION',
                                             'valid':'WAIT_FOR_GO',
                                             'preempted':'WAIT_FOR_GO'})

@@ -96,8 +96,15 @@ class App(object):
         vbox.pack_start(drinks_status, False, False)
 
         # status messages
+        vbox_r =  gtk.VBox()
         self.status_display =  StatusMessageDisplay("/buttler_status_messages")
-        hbox.pack_start(self.status_display)
+        btn_box =  gtk.HBox()
+        loaded =  BooleanPublishButton("Go", "/remote_buttons/go/enable",
+                                       "/remote_buttons/go/cb", False)
+        btn_box.pack_start(loaded)
+        vbox_r.pack_start(self.status_display)
+        vbox_r.pack_start(btn_box)
+        hbox.pack_start(vbox_r)
                 
         
         self.main_window.add(hbox)
@@ -198,6 +205,25 @@ class StatusMessageDisplay(gtk.Frame):
     def status_cb(self, msg):
         self.add_message(msg.data)
 
+
+class RemoteEnabledDisabledButton(gtk.Button):
+    def __init__(self,  text, enable_disable_topic, enabled=True):
+        gtk.Button.__init__(self, text)
+        self.set_sensitive(enabled)
+        self._enable_disable_sub =  rospy.Subscriber(enable_disable_topic, Bool,
+                                                     self._disable_cb)
+        
+    def _disable_cb(self, msg):
+        self.set_sensitive(msg.data)
+            
+class BooleanPublishButton(RemoteEnabledDisabledButton):
+    def __init__(self, text, enable_topic, publish_topic, enabled=True):
+        RemoteEnabledDisabledButton.__init__(self, text, enable_topic, enabled)
+        self._publisher =  rospy.Publisher(publish_topic, Bool)
+        self.connect("clicked", self._click_cb)
+    
+    def _click_cb(self, btn):
+        self._publisher.publish(True)
 
 if __name__ == '__main__':
     m = App()
