@@ -11,12 +11,9 @@ from monitor_states import BooleanMonitor #go_button_monitor
 from go_to_station import cancelable_go_to_station
 
 from talker.srv import Speach
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool,  String
 
 import sm_global_data as application
-
-# This file implements the higher level state machine for long term patrolling.
-# It uses both the navigation and the dock and charge state machines
 
 class GoToBase(smach.State):
     def __init__(self):
@@ -24,11 +21,13 @@ class GoToBase(smach.State):
             outcomes    = ['succeeded']
         )
         #create client for service
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
 
     def execute(self,userdata):
         #execute service
+        application.app_data.status_publisher.publish("Going to base station.")
+
         rospy.sleep(1)
         return 'succeeded'
 
@@ -39,10 +38,11 @@ class GetAndMarkOrders(smach.State):
             outcomes    = ['succeeded']
         )
         #create client for service        
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
 
     def execute(self,userdata):
+        application.app_data.status_publisher.publish("Looking up order list.")
         #execute service
         rospy.sleep(1)
         return 'succeeded'        
@@ -56,12 +56,13 @@ class SayOrders(smach.State):
         #create client for speaking service
         #subscribe to beer button topic
         self.tray_empty=False
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
     def beer_button_cb(self,msg):
         self.tray_empty=msg.is_tray_empty
 
     def execute(self,userdata):
+        application.app_data.status_publisher.publish("Arrived with orders, off-loading")
         #execute speaking service
         
         #loop until tray is empty
@@ -75,10 +76,11 @@ class MarkOrdersComplete(smach.State):
             outcomes    = ['succeeded']
         )
         #create client for service        
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
 
     def execute(self,userdata):
+        application.app_data.status_publisher.publish("Marking orders complete.")
         #execute service
         rospy.sleep(1)
         return 'succeeded'        
@@ -96,7 +98,10 @@ def main():
         rospy.logerr("Talking service not started")
         application.app_data.talk_service =  lambda x: rospy.loginfo(x)
       
-	
+    # Create a publisher for log status
+    application.app_data.status_publisher = rospy.Publisher("/buttler_status_messages",  String)
+    application.app_data.status_publisher.publish("Starting up")
+    
     # Create a SMACH state machine
     butler_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
     with butler_sm:
@@ -132,8 +137,3 @@ if __name__ == '__main__':
     main()
 
 
-
-
-
-
-0

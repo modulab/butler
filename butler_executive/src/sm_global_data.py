@@ -7,8 +7,6 @@ class GlobalData(object):
         self.n_orders=0
         self.order_list=0
         
-      
-
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(GlobalData, cls).__new__(

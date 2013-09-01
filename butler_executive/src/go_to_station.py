@@ -14,10 +14,11 @@ class GoToStation(smach.State):
             outcomes    = ['succeeded']
         )
         
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
 
-    def execute(self,userdata):    
+    def execute(self,userdata):
+        application.app_data.status_publisher.publish("Traveling to QR code.")
         rospy.sleep(5)
         return 'succeeded'
         
@@ -28,10 +29,11 @@ class AskBottleBack(smach.State):
                              outcomes    = ['bottle_back', 'timeout']
                              )
         #subscribe to bottle button topic
-        rospy.sleep(1)
+        #rospy.sleep(1)
 
 
     def execute(self, userdata):
+        application.app_data.status_publisher.publish("Trying to get bottle back")
         application.app_data.talk_service(String("Please return that drink!"))
         rospy.sleep(3)
         return 'bottle_back'

@@ -36,7 +36,8 @@ class StolenBottleMonitor(smach_ros.MonitorState):
     def _callback(self,  ud,  msg):
         # If anything gets published here, it means something changed on the
         # tray so no need to check what...
-        # Return False means 'invalid' outcome of state 
+        # Return False means 'invalid' outcome of state
+        application.app_data.status_publisher.publish("Bottle stolen!")
         return False
     
     
