@@ -19,7 +19,11 @@ class GoToStation(smach.State):
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Traveling to QR code.")
-        rospy.sleep(5)
+        for i in range(100):
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'preempted'
+            rospy.sleep(0.05)
         return 'succeeded'
         
 
