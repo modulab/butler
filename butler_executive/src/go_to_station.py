@@ -5,6 +5,9 @@ import smach_ros
 
 from monitor_states import *
 
+import sm_global_data as application
+from std_msgs.msg import String
+
 class GoToStation(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -28,8 +31,9 @@ class AskBottleBack(smach.State):
         rospy.sleep(1)
 
 
-    def execute(self, userdata):    
-        rospy.sleep(20)
+    def execute(self, userdata):
+        application.app_data.talk_service(String("Please return that drink!"))
+        rospy.sleep(3)
         return 'bottle_back'
                 
 

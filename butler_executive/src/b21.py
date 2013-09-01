@@ -10,12 +10,10 @@ import smach_ros
 from monitor_states import BooleanMonitor #go_button_monitor
 from go_to_station import cancelable_go_to_station
 
+from talker.srv import Speach
 from std_msgs.msg import Bool
 
-# ParameterStore is a singleton class that contains all the battery tresholds. 
-# It is used so we that the updated tresholds can then be read by the battery 
-# monitor in monitor_states.py
-from sm_global_data import GlobalData
+import sm_global_data as application
 
 # This file implements the higher level state machine for long term patrolling.
 # It uses both the navigation and the dock and charge state machines
@@ -89,6 +87,15 @@ class MarkOrdersComplete(smach.State):
         
 def main():
     rospy.init_node('buttler')
+    
+    # Initialise talking services
+    try:
+        rospy.wait_for_service("/say", 10)
+        application.app_data.talk_service =  rospy.ServiceProxy("/say", Speach )
+    except:
+        rospy.logerr("Talking service not started")
+        application.app_data.talk_service =  lambda x: rospy.loginfo(x)
+      
 	
     # Create a SMACH state machine
     butler_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
