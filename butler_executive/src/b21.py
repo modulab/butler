@@ -109,8 +109,7 @@ def main():
                                transitions={'succeeded':'GET_AND_MARK_ORDERS'})
         smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(),
                                transitions={'succeeded':'WAIT_FOR_GO'})
-        smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go/cb',
-                                                            '/remote_buttons/go/enable'),
+        smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go'),
                                transitions={'invalid':'CANCELABLE_GO_TO_STATION',
                                             'valid':'WAIT_FOR_GO',
                                             'preempted':'WAIT_FOR_GO'})

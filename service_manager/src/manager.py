@@ -98,9 +98,10 @@ class App(object):
         # status messages
         vbox_r =  gtk.VBox()
         self.status_display =  StatusMessageDisplay("/buttler_status_messages")
+        
+        # state machine control buttons
         btn_box =  gtk.HBox()
-        loaded =  BooleanPublishButton("Go", "/remote_buttons/go/enable",
-                                       "/remote_buttons/go/cb", False)
+        loaded =  BooleanPublishButton("Go", "/remote_buttons/go", False)
         btn_box.pack_start(loaded)
         vbox_r.pack_start(self.status_display)
         vbox_r.pack_start(btn_box)
@@ -217,9 +218,9 @@ class RemoteEnabledDisabledButton(gtk.Button):
         self.set_sensitive(msg.data)
             
 class BooleanPublishButton(RemoteEnabledDisabledButton):
-    def __init__(self, text, enable_topic, publish_topic, enabled=True):
-        RemoteEnabledDisabledButton.__init__(self, text, enable_topic, enabled)
-        self._publisher =  rospy.Publisher(publish_topic, Bool)
+    def __init__(self, text, button_topic, enabled=True):
+        RemoteEnabledDisabledButton.__init__(self, text, button_topic+"/enable", enabled)
+        self._publisher =  rospy.Publisher(button_topic+"/callback", Bool)
         self.connect("clicked", self._click_cb)
     
     def _click_cb(self, btn):

@@ -47,9 +47,9 @@ by the Bool on enable_topic, and when the remote button is pressed input topic
 receives True, see BooleanMonitor.
 """
 class ButtonMonitor(BooleanMonitor):
-    def __init__(self, input_topic, enable_topic):
-        BooleanMonitor.__init__(self, input_topic)
-        self._publisher =  rospy.Publisher(enable_topic, Bool, latch=True)
+    def __init__(self, button_topic):
+        BooleanMonitor.__init__(self, button_topic+"/callback")
+        self._publisher =  rospy.Publisher(button_topic+"/enable", Bool, latch=True)
         
     def execute(self, ud):
         self._publisher.publish(True)
