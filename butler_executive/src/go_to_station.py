@@ -125,8 +125,8 @@ def cancelable_go_to_station():
                                                     
     with sm:
         smach.Concurrence.add('STEAL_AWARE_GO_TO_STATION', steal_aware_go_to_station())
-        smach.Concurrence.add('CANCEL_MONITOR', BooleanMonitor("/cancel_button") ) #cancel_monitor())
-        smach.Concurrence.add('FORCE_COMPLETION_MONITOR', BooleanMonitor("/force_complete_button") ) #force_completion_monitor())
+        smach.Concurrence.add('CANCEL_MONITOR', ButtonMonitor("/remote_buttons/cancel") ) #cancel_monitor())
+        smach.Concurrence.add('FORCE_COMPLETION_MONITOR', ButtonMonitor("/remote_buttons/mark_done") ) #force_completion_monitor())
             
     return sm    
 

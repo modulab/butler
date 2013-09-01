@@ -103,8 +103,12 @@ class App(object):
         btn_box =  gtk.HBox()
         loaded =  BooleanPublishButton("Go", "/remote_buttons/go", False)
         btn_box.pack_start(loaded)
+        cancel =  BooleanPublishButton("Cancel trip.", "/remote_buttons/cancel", False)
+        btn_box.pack_start(cancel)
+        done =  BooleanPublishButton("Flag done.", "/remote_buttons/mark_done", False)
+        btn_box.pack_start(done)
         vbox_r.pack_start(self.status_display)
-        vbox_r.pack_start(btn_box)
+        vbox_r.pack_start(btn_box,  False,  False)
         hbox.pack_start(vbox_r)
                 
         
