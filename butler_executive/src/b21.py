@@ -12,6 +12,7 @@ from go_to_station import cancelable_go_to_station
 
 from talker.srv import Speach
 from std_msgs.msg import Bool,  String
+from web_connector.srv import *
 
 import sm_global_data as application
 
@@ -35,16 +36,57 @@ class GoToBase(smach.State):
 class GetAndMarkOrders(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-            outcomes    = ['succeeded']
+            outcomes    = ['succeeded', 'no_orders']
         )
-        #create client for service        
-        #rospy.sleep(1)
+        # create client for service
+        try:
+            rospy.wait_for_service("get_orders", 4)
+            rospy.wait_for_service("mark_active_orders", 4)
+        except:
+            rospy.logerr("Can't find web_connector services!")
+            sys.exit(1)
+            
+        self.get_orders = rospy.ServiceProxy("get_orders", GetOrders)
+        self.mark_active_orders = rospy.ServiceProxy("mark_active_orders", MarkActiveOrders)
+        
 
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Looking up order list.")
         #execute service
-        rospy.sleep(1)
+        resp = self.get_orders()
+        orders = resp.orders
+        application.app_data.status_publisher.publish("  found "+str(len(orders)))
+        
+        if len(orders) < 1:
+            rospy.sleep(10)
+            return 'no_orders'
+        
+        # select which orders will be processed
+        order_weights = {'1beer': 1, '2beer': 2, '3beer': 3,}
+        MAX_LOAD = 6
+        service_station =  orders[0].station_id
+        carrying = 0
+        this_round = []
+        for order in orders:
+            if order.station_id != service_station:
+                continue
+            carrying += order_weights[order.drinks]
+            if carrying > MAX_LOAD:
+                break
+            this_round.append(order)
+        
+        # mark the orders as active
+        req =  MarkActiveOrdersRequest()
+        req.order_ids = []
+        for order in this_round:
+            application.app_data.status_publisher.publish(":: activating "+str(order.order_id))
+
+            req.order_ids.append(order.order_id)
+        self.mark_active_orders(req)
+        
+        application.app_data.order_list =  this_round
+
         return 'succeeded'        
 
 
@@ -63,10 +105,15 @@ class SayOrders(smach.State):
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Arrived with orders, off-loading")
-        #execute speaking service
+        # Say the names of the peoples orders
+        say =  "Order here for "
+        for order in application.app_data.order_list:
+            say = say + order.name + ", "
+        application.app_data.talk_service(String(say))
         
-        #loop until tray is empty
-        rospy.sleep(1)
+        # Wait until the drinks are all taken...timeout too
+        rospy.sleep(4)
+        
         return 'empty_tray'
         
         
@@ -75,14 +122,25 @@ class MarkOrdersComplete(smach.State):
         smach.State.__init__(self,
             outcomes    = ['succeeded']
         )
+        # create client for service
+        try:
+            rospy.wait_for_service("mark_order_complete", 4)
+        except:
+            rospy.logerr("Can't find web_connector services!")
+            sys.exit(1)
+            
+        self.mark_order_complete = rospy.ServiceProxy("mark_order_complete", MarkOrderComplete)
+        
         #create client for service        
         #rospy.sleep(1)
 
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Marking orders complete.")
-        #execute service
-        rospy.sleep(1)
+        
+        for order in application.app_data.order_list:
+            resp = self.mark_order_complete(order.order_id)
+                
         return 'succeeded'        
         
         
@@ -108,7 +166,8 @@ def main():
         smach.StateMachine.add('GO_TO_BASE', GoToBase(),
                                transitions={'succeeded':'GET_AND_MARK_ORDERS'})
         smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(),
-                               transitions={'succeeded':'WAIT_FOR_GO'})
+                               transitions={'succeeded':'WAIT_FOR_GO',
+                                            'no_orders': 'GET_AND_MARK_ORDERS',})
         smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go'),
                                transitions={'invalid':'CANCELABLE_GO_TO_STATION',
                                             'valid':'WAIT_FOR_GO',

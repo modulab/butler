@@ -16,6 +16,7 @@
   <depend package="butler_msgs"/>
   <depend package="butler"/>
   <depend package="talker"/>
+  <depend package="web_connector"/>
 
 </package>
 
