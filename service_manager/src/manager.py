@@ -16,9 +16,6 @@ class App(object):
         
         self._init_gui()
 
-
-        
-
     def _init_gui(self):
         self.main_window = gtk.Window()
         self.main_window.set_title("Service Manager")
@@ -27,6 +24,7 @@ class App(object):
         vbox = gtk.VBox(False, 8)
         hbox = gtk.HBox()
         hbox.pack_start(vbox)
+        self.main_window.add(hbox)
 
         robot_status = RobotStatusDisplay() 
         vbox.pack_start(robot_status, False, False)
@@ -34,20 +32,7 @@ class App(object):
         orders_status = OrdersDisplay() 
         vbox.pack_start(orders_status, True, True)
 
-        
-        drinks_status = DrinksSensorDisplay() #gtk.Frame("Drink Sensors")
-        #self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
-                           #gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
-        #drinks_v=gtk.VBox(False,False)
-        #drinks_top_row = gtk.HBox(False,False)
-        #drinks_bottom_row = gtk.HBox(False,False)
-        #drinks_v.pack_start(drinks_top_row)
-        #for i in range(0,4):
-            #drinks_top_row.pack_start(self.drink_labels[i], False, False)
-        #drinks_v.pack_start(drinks_bottom_row)
-        #for i in range(4,8):
-            #drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
-        #drinks_status.add(drinks_v)
+        drinks_status = DrinksSensorDisplay()
         vbox.pack_start(drinks_status, False, False)
 
         # status messages
@@ -65,11 +50,7 @@ class App(object):
         vbox_r.pack_start(self.status_display)
         vbox_r.pack_start(btn_box,  False,  False)
         hbox.pack_start(vbox_r)
-                
-        
-        self.main_window.add(hbox)
-    
-        
+            
     def run(self):
         self.main_window.show_all()
 
@@ -118,16 +99,31 @@ class RobotStatusDisplay(gtk.Frame):
         gtk.Frame.__init__(self,  "Robot status")
         robot_status_v = gtk.VBox()
         self.battery_label = gtk.Label("Battery voltage: no data!")
-        self.brake_button = gtk.ToggleButton("Brakes disabled")
+        self.brake_button = gtk.Button("NO BRAKE DATA")
         self.brake_button.connect("clicked",self.brake_button_cb)
         robot_status_v.pack_start(self.battery_label,False,False)
         robot_status_v.pack_start(self.brake_button, False, False)
         self.add(robot_status_v)
         
-        self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
+        self.battery_sub = rospy.Subscriber("/b21/voltage", Float32,self.battery_cb)
+        self.brake_sub = rospy.Subscriber("/b21/brake_power", Bool, self.brake_cb)
+        self.brake_pub = rospy.Publisher("/b21/cmd_brake_power", Bool)
 
+        self.brakes_on = False
 
     def brake_button_cb(self, btn):
+        self.brake_pub.publish(not self.brakes_on)
+        pass
+    
+    def brake_cb(self, msg):
+        if self.brakes_on == msg.data:
+            return
+        self.brakes_on = msg.data
+        if msg.data:
+            self.brake_button.set_label("BRAKE ON")
+        else:
+            self.brake_button.set_label("BRAKE OFF")
+            
         pass
 
     def battery_cb(self, msg):
