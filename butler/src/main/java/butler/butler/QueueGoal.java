@@ -14,11 +14,23 @@ public class QueueGoal {
 
 	private MoveBaseActionGoal goal;
 	private int type, status = STOPPED_STATUS;
+	private String id, station, drinks, name;
 
 	public QueueGoal(MoveBaseActionGoal goal, int type) {
 		super();
 		this.goal = goal;
 		this.type = type;
+	}
+
+	public QueueGoal(MoveBaseActionGoal goal, int type, String id,
+			String station, String drinks, String name) {
+		super();
+		this.goal = goal;
+		this.type = type;
+		this.id = id;
+		this.station = station;
+		this.drinks = drinks;
+		this.name = name;
 	}
 
 	public int getStatus() {
@@ -45,14 +57,50 @@ public class QueueGoal {
 		this.type = type;
 	}
 
+	public String getId() {
+		return id;
+	}
+
+	public void setId(String id) {
+		id = id;
+	}
+
+	public String getStation() {
+		return station;
+	}
+
+	public void setStation(String station) {
+		this.station = station;
+	}
+
+	public String getDrinks() {
+		return drinks;
+	}
+
+	public void setDrinks(String drinks) {
+		this.drinks = drinks;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
 	public boolean equals(QueueGoal other) {
-		return this.getGoal().getGoal().getTargetPose().getPose().getPosition().getX() == other.getGoal().getGoal().getTargetPose()
-				.getPose().getPosition().getX()
-				&& this.getGoal().getGoal().getTargetPose().getPose().getPosition().getY() == other.getGoal().getGoal().getTargetPose()
-						.getPose().getPosition().getY()
-				&& this.getGoal().getGoal().getTargetPose().getPose().getPosition().getZ() == other.getGoal().getGoal().getTargetPose()
-						.getPose().getPosition().getZ()
-				&& this.getGoal().getGoal().getTargetPose().getPose().getOrientation().getW() == other.getGoal().getGoal().getTargetPose()
-						.getPose().getOrientation().getW();
+		return this.getGoal().getGoal().getTargetPose().getPose().getPosition()
+				.getX() == other.getGoal().getGoal().getTargetPose().getPose()
+				.getPosition().getX()
+				&& this.getGoal().getGoal().getTargetPose().getPose()
+						.getPosition().getY() == other.getGoal().getGoal()
+						.getTargetPose().getPose().getPosition().getY()
+				&& this.getGoal().getGoal().getTargetPose().getPose()
+						.getPosition().getZ() == other.getGoal().getGoal()
+						.getTargetPose().getPose().getPosition().getZ()
+				&& this.getGoal().getGoal().getTargetPose().getPose()
+						.getOrientation().getW() == other.getGoal().getGoal()
+						.getTargetPose().getPose().getOrientation().getW();
 	}
 }
