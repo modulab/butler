@@ -56,7 +56,7 @@ class GetAndMarkOrders(smach.State):
         #execute service
         resp = self.get_orders()
         orders = resp.orders
-        application.app_data.status_publisher.publish("  found "+str(len(orders)))
+        application.app_data.status_publisher.publish(" -> found "+str(len(orders)))
         
         if len(orders) < 1:
             rospy.sleep(10)
@@ -81,9 +81,8 @@ class GetAndMarkOrders(smach.State):
         req =  MarkActiveOrdersRequest()
         req.order_ids = []
         for order in this_round:
-            application.app_data.status_publisher.publish(":: activating "+str(order.order_id))
-
             req.order_ids.append(order.order_id)
+            
         self.mark_active_orders(req)
         
         application.app_data.order_list =  this_round
