@@ -77,7 +77,7 @@ class GetAndMarkOrders(smach.State):
         application.app_data.order_list =  this_round
         application.app_data.n_drinks = carrying
         
-        application.app_data.status_publisher.publish("Load orders and press go!")        
+        application.app_data.status_publisher.publish("Load " + str(carrying) +" beers and press go!")        
         return 'succeeded'        
 
 
