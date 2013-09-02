@@ -27,7 +27,6 @@ class GoToStation(smach.State):
         self.crowded_nav_feedback_sub =  rospy.Subscriber("/crowded_nav/feedback",
                                                         String,
                                                         self.feedback_cb)
-        #rospy.sleep(1)
 
 
     def execute(self,userdata):
@@ -60,6 +59,9 @@ class GoToStation(smach.State):
     def feedback_cb(self, msg):
         application.app_data.status_publisher.publish("[Crowded_Nav] "+msg.data)
     
+"""
+Concurrent state that GoToStation, but is prempted by a joystick overtake request
+"""
 class JoystickMonitoredGotoStation(smach.Concurrence):
     def __init__(self,  to_base=False):
         smach.Concurrence.__init__(self, outcomes=['succeeded',
@@ -88,6 +90,10 @@ class JoystickMonitoredGotoStation(smach.Concurrence):
         if  outcome_map["GO_TO_STATION"]=="succeeded":
             return "succeeded"
         
+"""
+State that robot is in when in joystick control mode. Waits for authorisation to
+'succeed' -> done GoToStation , or 'return_control' -> continue with GoToStation
+"""
 class JoystickControl(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -100,6 +106,9 @@ class JoystickControl(smach.State):
         # or succeded
         return 'succeeded'
     
+"""
+The sub state machine implementing a joystick overidable GoToStation state.
+"""
 class JoystickOverideableGoToStation(smach.StateMachine):
     def __init__(self, to_base=False):
         smach.StateMachine.__init__(self, outcomes=['succeeded'])

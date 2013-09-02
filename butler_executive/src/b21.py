@@ -16,7 +16,12 @@ from web_connector.srv import *
 
 import sm_global_data as application
 
-
+"""
+State the gets the current orders, selects which ones to process, marks them
+as active and exits 'succeeded' if orders, 'no_orders' if nothing to do.
+The selected orders are then stored in the globabl application data singleton
+for use in other states.
+"""
 class GetAndMarkOrders(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -76,6 +81,11 @@ class GetAndMarkOrders(smach.State):
         return 'succeeded'        
 
 
+"""
+Say orders is entered when the robot gets to a drink station to offload drinks.
+It speaks the name of the people the order is for and waits for the drink caddy
+to be empty. Timeout after X seconds.
+"""
 class SayOrders(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -102,7 +112,10 @@ class SayOrders(smach.State):
         
         return 'empty_tray'
         
-        
+"""
+Once drinks offloads, this state is entered and marks the orders as completed
+on the server.
+"""
 class MarkOrdersComplete(smach.State):
     def __init__(self):
         smach.State.__init__(self,
