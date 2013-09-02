@@ -8,7 +8,7 @@ import smach
 import smach_ros
 
 from monitor_states import BooleanMonitor, ButtonMonitor #go_button_monitor
-from go_to_station import cancelable_go_to_station
+from go_to_station import CancelableGoToStation
 
 from talker.srv import Speach
 from std_msgs.msg import Bool,  String
@@ -173,7 +173,7 @@ def main():
                                transitions={'invalid':'CANCELABLE_GO_TO_STATION',
                                             'valid':'WAIT_FOR_GO',
                                             'preempted':'WAIT_FOR_GO'})
-        smach.StateMachine.add('CANCELABLE_GO_TO_STATION', cancelable_go_to_station(),
+        smach.StateMachine.add('CANCELABLE_GO_TO_STATION', CancelableGoToStation(),
                                transitions={'arrived_to_station':'SAY_ORDERS',
                                             'forced_completion':'SAY_ORDERS',
                                             'cancelled':'GO_TO_BASE'})

@@ -74,6 +74,8 @@ class AskBottleBack(smach.State):
 """
 A MonitoredGoToStation state executes the traveling to the goal at the same time
 as checking that a drink is not stolen.
+Outcomes 'arrived_at_station' if good, if a bottle is stolen then GoToStation is
+canceld and the outcome is 'stolen_bottle'.
 """
 class MonitoredGoToStation(smach.Concurrence):
     def __init__(self):
@@ -87,92 +89,76 @@ class MonitoredGoToStation(smach.Concurrence):
             smach.Concurrence.add('GO_TO_STATION', GoToStation())
             smach.Concurrence.add('STOLEN_BOTTLE_MONITOR',StolenBottleMonitor())
 
-    # outcome maps for the concurrence container
-    # The cild termination callback decided when the concurrence container should be
-    # terminated, bases on the outcomes of its children. When it outputs True, the 
-    # container terminates and the concurrence container outcome callback is called
     def child_term_cb_stolen(self, outcome_map):
+        # decide if this state is done when one or more concurrent inner states 
+        # stop
         if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid' or outcome_map["GO_TO_STATION"]=="succeeded":
             return True
         return False
     
-    
-    # The concurrence container outcome callback maps the outcomes of the 
-    # container's children into an outcome for the concurrence container itself   
     def out_cb_stolen(self, outcome_map):
-        # rospy.sleep(0.1) without this sleep, sometimes the concurrence container 
-        # terminates before all its children terminate, and an error is printed.
-        # However, that does not affect the evolution, and I think that with the 
-        # sleep sometimes the container blocks and never terminates
+        # determine what the outcome of this machine is
         if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid':
             return 'stolen_bottle'
         if  outcome_map["GO_TO_STATION"]=="succeeded":
             return "arrived_to_station"
 
 
-#Move base + recovery behaviour. The number of move_base fails is sent from the
-# move_base action state to the move_base recovery state.
-def steal_aware_go_to_station():
-    sm=smach.StateMachine(outcomes=['arrived_to_station'])
-    
-    with sm:
-        smach.StateMachine.add('ASK_BOTTLE_BACK', AskBottleBack(),
-                               transitions={'bottle_back':'MONITORED_GO_TO_STATION',
-                                            'timeout':'MONITORED_GO_TO_STATION'})
+"""
+Steal aware navigation to station. MonitoredGoToStation <-> AskBottleBack
+Outcome -> arrived_to_station
+"""
+class StealAwareGoToStation(smach.StateMachine):
+    def __init__(self):
+        smach.StateMachine.__init__(self, outcomes=['arrived_to_station'])
         
-        monitored_go_to_station = MonitoredGoToStation()
+        with self:
+            smach.StateMachine.add('ASK_BOTTLE_BACK', AskBottleBack(),
+                                   transitions={'bottle_back':'MONITORED_GO_TO_STATION',
+                                                'timeout':'MONITORED_GO_TO_STATION'})
         
-        smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,
-                               transitions={'stolen_bottle':'ASK_BOTTLE_BACK',
-                                            'arrived_to_station':'arrived_to_station'})
+            monitored_go_to_station = MonitoredGoToStation()
         
-    sm.set_initial_state(["MONITORED_GO_TO_STATION"])
+            smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,
+                                   transitions={'stolen_bottle':'ASK_BOTTLE_BACK',
+                                                'arrived_to_station':'arrived_to_station'})
         
-    return sm
-
+        self.set_initial_state(["MONITORED_GO_TO_STATION"])
         
-# outcome maps for the concurrence container
-# The cild termination callback decided when the concurrence container should be 
-# terminated, bases on the outcomes of its children. When it outputs True, the 
-# container terminates and the concurrence container outcome callback is called
-def child_term_cb_cancel(outcome_map):
-    if outcome_map['CANCEL_MONITOR'] == 'invalid' or outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid' or outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
-        return True
-    return False
-
-
-# The concurrence container outcome callback maps the outcomes of the container's 
-# children into an outcome for the concurrence container itself   
-def out_cb_cancel(outcome_map):
-    # rospy.sleep(0.1) without this sleep, sometimes the concurrence container 
-    # terminates before all its children terminate, and an error is printed. 
-    # However, that does not affect the evolution, and I think that with the 
-    # sleep sometimes the container blocks and never terminates
-    if outcome_map['CANCEL_MONITOR'] == 'invalid':
-        return 'cancelled'
-    if  outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid':
-        return "forced_completion"
-    if  outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
-        return "arrived_to_station"        
-
-
-        
-def cancelable_go_to_station():
-    
-    sm=smach.Concurrence(outcomes=['arrived_to_station','cancelled','forced_completion'],
-                                                    default_outcome='arrived_to_station',
-                                                    child_termination_cb=child_term_cb_cancel,
-                                                    outcome_cb = out_cb_cancel,
-                                                    )
-                                                    
-    with sm:
-        smach.Concurrence.add('STEAL_AWARE_GO_TO_STATION', steal_aware_go_to_station())
-        smach.Concurrence.add('CANCEL_MONITOR', ButtonMonitor("/remote_buttons/cancel") ) #cancel_monitor())
-        smach.Concurrence.add('FORCE_COMPLETION_MONITOR', ButtonMonitor("/remote_buttons/mark_done") ) #force_completion_monitor())
+"""
+CancelableGoToStation is concurrent StealAwareGoToStation and some monitors for
+cancelation of motion, forced completion or joytick takeover.
+"""
+class CancelableGoToStation(smach.Concurrence):
+    def __init__(self):
+        smach.Concurrence.__init__(self, outcomes=['arrived_to_station',
+                                                   'cancelled',
+                                                   'forced_completion'],
+                                         default_outcome='arrived_to_station',
+                                         child_termination_cb=self.child_term_cb_cancel,
+                                         outcome_cb = self.out_cb_cancel,
+                                         )
+        with self:
+            smach.Concurrence.add('STEAL_AWARE_GO_TO_STATION', StealAwareGoToStation())
+            smach.Concurrence.add('CANCEL_MONITOR', ButtonMonitor("/remote_buttons/cancel") ) #cancel_monitor())
+            smach.Concurrence.add('FORCE_COMPLETION_MONITOR', ButtonMonitor("/remote_buttons/mark_done") ) #force_completion_monitor())
             
-    return sm    
+    def child_term_cb_cancel(self, outcome_map):
+         # decide if this state is done when one or more concurrent inner states 
+        # stop
+        if outcome_map['CANCEL_MONITOR'] == 'invalid' or outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid' or outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
+            return True
+        return False
+    
+    def out_cb_cancel(self, outcome_map):
+        # determine what the outcome of this machine is
+        if outcome_map['CANCEL_MONITOR'] == 'invalid':
+            return 'cancelled'
+        if  outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid':
+            return "forced_completion"
+        if  outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
+            return "arrived_to_station"        
 
-          
 
     
     
