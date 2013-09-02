@@ -12,13 +12,86 @@ import gobject
 
 class App(object):
     def __init__(self):
-        self._init_gui()
-        
         self.node = rospy.init_node("service_manager")
-        self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
+        
+        self._init_gui()
+
+
+        
+
+    def _init_gui(self):
+        self.main_window = gtk.Window()
+        self.main_window.set_title("Service Manager")
+        self.main_window.connect('destroy', gtk.main_quit)
+        self.main_window.set_size_request(800, 600)
+        vbox = gtk.VBox(False, 8)
+        hbox = gtk.HBox()
+        hbox.pack_start(vbox)
+
+        robot_status = RobotStatusDisplay() 
+        vbox.pack_start(robot_status, False, False)
+
+        orders_status = OrdersDisplay() 
+        vbox.pack_start(orders_status, True, True)
+
+        
+        drinks_status = DrinksSensorDisplay() #gtk.Frame("Drink Sensors")
+        #self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
+                           #gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
+        #drinks_v=gtk.VBox(False,False)
+        #drinks_top_row = gtk.HBox(False,False)
+        #drinks_bottom_row = gtk.HBox(False,False)
+        #drinks_v.pack_start(drinks_top_row)
+        #for i in range(0,4):
+            #drinks_top_row.pack_start(self.drink_labels[i], False, False)
+        #drinks_v.pack_start(drinks_bottom_row)
+        #for i in range(4,8):
+            #drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
+        #drinks_status.add(drinks_v)
+        vbox.pack_start(drinks_status, False, False)
+
+        # status messages
+        vbox_r =  gtk.VBox()
+        self.status_display =  StatusMessageDisplay("/buttler_status_messages")
+        
+        # state machine control buttons
+        btn_box =  gtk.HBox()
+        loaded =  BooleanPublishButton("Go", "/remote_buttons/go", False)
+        btn_box.pack_start(loaded)
+        cancel =  BooleanPublishButton("Cancel trip.", "/remote_buttons/cancel", False)
+        btn_box.pack_start(cancel)
+        done =  BooleanPublishButton("Flag done.", "/remote_buttons/mark_done", False)
+        btn_box.pack_start(done)
+        vbox_r.pack_start(self.status_display)
+        vbox_r.pack_start(btn_box,  False,  False)
+        hbox.pack_start(vbox_r)
+                
+        
+        self.main_window.add(hbox)
+    
+        
+    def run(self):
+        self.main_window.show_all()
+
+        
+class DrinksSensorDisplay(gtk.Frame):
+    def __init__(self):
+        gtk.Frame.__init__(self, "Drink Sensors")
+        self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
+                           gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
+        drinks_v=gtk.VBox(False,False)
+        drinks_top_row = gtk.HBox(False,False)
+        drinks_bottom_row = gtk.HBox(False,False)
+        drinks_v.pack_start(drinks_top_row)
+        for i in range(0,4):
+            drinks_top_row.pack_start(self.drink_labels[i], False, False)
+        drinks_v.pack_start(drinks_bottom_row)
+        for i in range(4,8):
+            drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
+        self.add(drinks_v)
+        
         self.drink_status_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
-
-
+        
         # Update the drink sensor display
         try:
             rospy.wait_for_service("request_drinks_status", 1)
@@ -28,26 +101,41 @@ class App(object):
         except:
             rospy.logwarn("Couldn't call drink sensor service.")
 
-    def _init_gui(self):
-        self.main_window = gtk.Window()
-        self.main_window.set_title("Service Manager")
-        self.main_window.connect('destroy', gtk.main_quit)
-        self.main_window.set_size_request(800, 600)
-        vbox = gtk.VBox(False, 8)
+   
+    def update_drinks_indicator(self, drinks):
+        for status, label in zip(drinks, self.drink_labels):
+            if status:
+                label.set_text("True")
+            else:
+                label.set_text("False")
+            
 
-        robot_status = gtk.Frame("Robot status")
+    def drinks_cb(self, msg):
+        self.update_drinks_indicator(msg.status)
+
+class RobotStatusDisplay(gtk.Frame):
+    def __init__(self):
+        gtk.Frame.__init__(self,  "Robot status")
         robot_status_v = gtk.VBox()
         self.battery_label = gtk.Label("Battery voltage: no data!")
         self.brake_button = gtk.ToggleButton("Brakes disabled")
         self.brake_button.connect("clicked",self.brake_button_cb)
         robot_status_v.pack_start(self.battery_label,False,False)
         robot_status_v.pack_start(self.brake_button, False, False)
-        robot_status.add(robot_status_v)
-        hbox = gtk.HBox()
-        hbox.pack_start(vbox)
-        vbox.pack_start(robot_status, False, False)
+        self.add(robot_status_v)
+        
+        self.battery_sub = rospy.Subscriber("/b21/voltage",Float32,self.battery_cb)
 
-        orders_status = gtk.Frame("Orders")
+
+    def brake_button_cb(self, btn):
+        pass
+
+    def battery_cb(self, msg):
+        self.battery_label.set_text("Battery voltage: %f"%msg.data)
+        
+class OrdersDisplay(gtk.Frame):
+    def __init__(self):
+        gtk.Frame.__init__(self, "Orders")
         orders_status_v = gtk.VBox()
         sw = gtk.ScrolledWindow()
         sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
@@ -76,48 +164,8 @@ class App(object):
             self.orders_view.append_column(column)
  
         sw.add(self.orders_view)
-        orders_status.add(orders_status_v)
-        vbox.pack_start(orders_status, True, True)
-
+        self.add(orders_status_v)
         
-        drinks_status = gtk.Frame("Drink Sensors")
-        self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
-                           gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
-        drinks_v=gtk.VBox(False,False)
-        drinks_top_row = gtk.HBox(False,False)
-        drinks_bottom_row = gtk.HBox(False,False)
-        drinks_v.pack_start(drinks_top_row)
-        for i in range(0,4):
-            drinks_top_row.pack_start(self.drink_labels[i], False, False)
-        drinks_v.pack_start(drinks_bottom_row)
-        for i in range(4,8):
-            drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
-        drinks_status.add(drinks_v)
-        vbox.pack_start(drinks_status, False, False)
-
-        # status messages
-        vbox_r =  gtk.VBox()
-        self.status_display =  StatusMessageDisplay("/buttler_status_messages")
-        
-        # state machine control buttons
-        btn_box =  gtk.HBox()
-        loaded =  BooleanPublishButton("Go", "/remote_buttons/go", False)
-        btn_box.pack_start(loaded)
-        cancel =  BooleanPublishButton("Cancel trip.", "/remote_buttons/cancel", False)
-        btn_box.pack_start(cancel)
-        done =  BooleanPublishButton("Flag done.", "/remote_buttons/mark_done", False)
-        btn_box.pack_start(done)
-        vbox_r.pack_start(self.status_display)
-        vbox_r.pack_start(btn_box,  False,  False)
-        hbox.pack_start(vbox_r)
-                
-        
-        self.main_window.add(hbox)
-    
-        
-    def run(self):
-        self.main_window.show_all()
-
     def get_selected(self):
         (model, pathlist) = self.orders_view.get_selection().get_selected_rows()
         selected = []
@@ -161,23 +209,6 @@ class App(object):
         except:
             rospy.logwarn("web connection services not available.")
 
-    def battery_cb(self, msg):
-        self.battery_label.set_text("Battery voltage: %f"%msg.data)
-
-    def update_drinks_indicator(self, drinks):
-        for status, label in zip(drinks, self.drink_labels):
-            if status:
-                label.set_text("True")
-            else:
-                label.set_text("False")
-            
-
-    def drinks_cb(self, msg):
-        self.update_drinks_indicator(msg.status)
-
-    def brake_button_cb(self, btn):
-        pass
-
 
 class StatusMessageDisplay(gtk.Frame):
     def __init__(self,  topic):
@@ -209,8 +240,8 @@ class StatusMessageDisplay(gtk.Frame):
             
     def status_cb(self, msg):
         self.add_message(msg.data)
-
-
+#
+# Buttons that connect to ROS
 class RemoteEnabledDisabledButton(gtk.Button):
     def __init__(self,  text, enable_disable_topic, enabled=True):
         gtk.Button.__init__(self, text)
