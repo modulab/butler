@@ -46,13 +46,17 @@ public class QueueGoal {
 	}
 
 	public boolean equals(QueueGoal other) {
-		return this.getGoal().getGoal().getTargetPose().getPose().getPosition().getX() == other.getGoal().getGoal().getTargetPose()
-				.getPose().getPosition().getX()
-				&& this.getGoal().getGoal().getTargetPose().getPose().getPosition().getY() == other.getGoal().getGoal().getTargetPose()
-						.getPose().getPosition().getY()
-				&& this.getGoal().getGoal().getTargetPose().getPose().getPosition().getZ() == other.getGoal().getGoal().getTargetPose()
-						.getPose().getPosition().getZ()
-				&& this.getGoal().getGoal().getTargetPose().getPose().getOrientation().getW() == other.getGoal().getGoal().getTargetPose()
-						.getPose().getOrientation().getW();
+		return this.getGoal().getGoal().getTargetPose().getPose().getPosition()
+				.getX() == other.getGoal().getGoal().getTargetPose().getPose()
+				.getPosition().getX()
+				&& this.getGoal().getGoal().getTargetPose().getPose()
+						.getPosition().getY() == other.getGoal().getGoal()
+						.getTargetPose().getPose().getPosition().getY()
+				&& this.getGoal().getGoal().getTargetPose().getPose()
+						.getPosition().getZ() == other.getGoal().getGoal()
+						.getTargetPose().getPose().getPosition().getZ()
+				&& this.getGoal().getGoal().getTargetPose().getPose()
+						.getOrientation().getW() == other.getGoal().getGoal()
+						.getTargetPose().getPose().getOrientation().getW();
 	}
 }

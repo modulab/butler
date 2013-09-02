@@ -9,6 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>NONE</url>
   <depend package="rospy"/>
+  <depend package="move_base_msgs"/>
 
 </package>
 
