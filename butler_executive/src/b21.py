@@ -8,7 +8,7 @@ import smach
 import smach_ros
 
 from monitor_states import BooleanMonitor, ButtonMonitor #go_button_monitor
-from go_to_station import CancelableGoToStation, GoToStation
+from go_to_station import CancelableGoToStation, JoystickOverideableGoToStation
 
 from talker.srv import Speach
 from std_msgs.msg import Bool,  String
@@ -149,7 +149,7 @@ def main():
     # Create a SMACH state machine
     butler_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
     with butler_sm:
-        smach.StateMachine.add('GO_TO_BASE', GoToStation(to_base=True),
+        smach.StateMachine.add('GO_TO_BASE', JoystickOverideableGoToStation(to_base=True),
                                transitions={'succeeded':'GET_AND_MARK_ORDERS'})
         smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(),
                                transitions={'succeeded':'WAIT_FOR_GO',

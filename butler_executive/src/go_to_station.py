@@ -36,7 +36,7 @@ class GoToStation(smach.State):
         return 'succeeded'
     
 class JoystickMonitoredGotoStation(smach.Concurrence):
-    def __init__(self):
+    def __init__(self,  to_base=False):
         smach.Concurrence.__init__(self, outcomes=['succeeded',
                                                    'joystick_takeover'],
                                    default_outcome='succeeded',
@@ -44,7 +44,7 @@ class JoystickMonitoredGotoStation(smach.Concurrence):
                                    outcome_cb = self.out_cb_stolen,
                                    )
         with self:
-            smach.Concurrence.add('GO_TO_STATION', GoToStation())
+            smach.Concurrence.add('GO_TO_STATION', GoToStation(to_base))
             smach.Concurrence.add('JOYSTICK_TAKEOVER_MONITOR',
                                   ButtonMonitor("/remote_buttons/joystick"))
 
@@ -76,11 +76,11 @@ class JoystickControl(smach.State):
         return 'succeeded'
     
 class JoystickOverideableGoToStation(smach.StateMachine):
-    def __init__(self):
+    def __init__(self, to_base=False):
         smach.StateMachine.__init__(self, outcomes=['succeeded'])
         
         with self:
-            smach.StateMachine.add('GOTO_STATION', JoystickMonitoredGotoStation(),
+            smach.StateMachine.add('GOTO_STATION', JoystickMonitoredGotoStation(to_base),
                                    transitions={'joystick_takeover':'JOYSTICK_CONTROL',
                                                 'succeeded':'succeeded'})
         
