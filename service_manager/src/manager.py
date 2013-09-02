@@ -20,7 +20,7 @@ class App(object):
         self.main_window = gtk.Window()
         self.main_window.set_title("Service Manager")
         self.main_window.connect('destroy', gtk.main_quit)
-        self.main_window.set_size_request(800, 600)
+        self.main_window.set_size_request(900, 600)
         vbox = gtk.VBox(False, 8)
         hbox = gtk.HBox()
         hbox.pack_start(vbox)
@@ -51,8 +51,15 @@ class App(object):
         btn_box.pack_start(cancel)
         done =  BooleanPublishButton("Flag done.", "/remote_buttons/mark_done", False)
         btn_box.pack_start(done)
-        done =  BooleanPublishButton("Joystick", "/remote_buttons/joystick", False)
-        btn_box.pack_start(done)
+        btn =  BooleanPublishButton("Joystick", "/remote_buttons/joystick", False)
+        btn_box.pack_start(btn)
+        btn =  BooleanPublishButton("JS Handback",
+                                    "/remote_buttons/joystick_handback", False)
+        btn_box.pack_start(btn)
+        btn =  BooleanPublishButton("JS Success",
+                                    "/remote_buttons/joystick_success", False)
+        btn_box.pack_start(btn)
+        
         vbox_r.pack_start(self.status_display)
         vbox_r.pack_start(btn_box,  False,  False)
         hbox.pack_start(vbox_r)

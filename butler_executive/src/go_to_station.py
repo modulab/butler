@@ -90,21 +90,81 @@ class JoystickMonitoredGotoStation(smach.Concurrence):
         if  outcome_map["GO_TO_STATION"]=="succeeded":
             return "succeeded"
         
+#"""
+#State that robot is in when in joystick control mode. Waits for authorisation to
+#'succeed' -> done GoToStation , or 'return_control' -> continue with GoToStation
+#"""
+#class JoystickControl(smach.State):
+    #def __init__(self):
+        #smach.State.__init__(self,
+                             #outcomes    = ['succeeded', 'return_control']
+                             #)
+
+    #def execute(self,userdata):
+        #application.app_data.status_publisher.publish("Under joystick control..")
+        ## wait for button press to indicate return control
+        ## or succeded
+        #return 'succeeded'
+    
 """
-State that robot is in when in joystick control mode. Waits for authorisation to
-'succeed' -> done GoToStation , or 'return_control' -> continue with GoToStation
+Monitor the joystick buttons, if user wants to handback control or mark sucess
+then exit as desired.
 """
-class JoystickControl(smach.State):
+class JoystickModeMonitor(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes    = ['succeeded', 'return_control']
-                             )
+                         outcomes    = ['succeeded', 'handback']
+                         )
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Under joystick control..")
         # wait for button press to indicate return control
         # or succeded
-        return 'succeeded'
+        while True:
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'succeeded'
+            rospy.sleep(0.1)
+
+""" State when in joystick control mode. Concurrently monitors some remote GUI buttons
+and the joystic buttons to decide when to leave.
+'succeed' -> done GoToStation , or 'return_control' -> continue with GoToStation
+"""
+class JoystickControl(smach.Concurrence):
+    def __init__(self,  to_base=False):
+        smach.Concurrence.__init__(self, outcomes=['succeeded',
+                                                   'return_control'],
+                                   default_outcome='succeeded',
+                                   child_termination_cb=self.child_term_cb_stolen,
+                                   outcome_cb = self.out_cb_stolen,
+                                   )
+        with self:
+            smach.Concurrence.add('JOYSTICK_HANDBACK_MONITOR',
+                                  ButtonMonitor('/remote_buttons/joystick_handback'))
+            smach.Concurrence.add('JOYSTICK_SUCCESS_MONITOR',
+                                  ButtonMonitor("/remote_buttons/joystick_success"))
+            smach.Concurrence.add('JOYSTICK_MODE_MONITOR',
+                                  JoystickModeMonitor())
+
+    def child_term_cb_stolen(self, outcome_map):
+        # decide if this state is done when one or more concurrent inner states 
+        # stop
+        if (outcome_map['JOYSTICK_HANDBACK_MONITOR'] == 'invalid' or
+            outcome_map['JOYSTICK_SUCCESS_MONITOR'] == 'invalid' or
+            outcome_map["JOYSTICK_MODE_MONITOR"]=="succeeded" or
+            outcome_map["JOYSTICK_MODE_MONITOR"]=="handback"):
+            return True
+        return False
+    
+    def out_cb_stolen(self, outcome_map):
+        # determine what the outcome of this machine is
+        if (outcome_map['JOYSTICK_HANDBACK_MONITOR'] == 'invalid' or
+            outcome_map["JOYSTICK_MODE_MONITOR"]=="handback"):
+            return 'return_control'
+        if  (outcome_map["JOYSTICK_SUCCESS_MONITOR"]=="invalid" or
+             outcome_map["JOYSTICK_MODE_MONITOR"]=="succeeded"):
+            return "succeeded"
+        
     
 """
 The sub state machine implementing a joystick overidable GoToStation state.
