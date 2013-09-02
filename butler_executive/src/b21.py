@@ -13,6 +13,7 @@ from go_to_station import CancelableGoToStation, JoystickOverideableGoToStation
 from talker.srv import Speach
 from std_msgs.msg import Bool,  String
 from web_connector.srv import *
+from drink_sensor.srv import * 
 
 import sm_global_data as application
 
@@ -91,13 +92,16 @@ class SayOrders(smach.State):
         smach.State.__init__(self,
             outcomes    = ['empty_tray']
         )
-        #create client for speaking service
-        #subscribe to beer button topic
-        self.tray_empty=False
-        #rospy.sleep(1)
-
-    def beer_button_cb(self,msg):
-        self.tray_empty=msg.is_tray_empty
+        
+        # service to query drinks status
+        try:
+            rospy.wait_for_service("request_drinks_status", 4)
+        except:
+            rospy.logerr("Can't find drink sensor services!")
+            sys.exit(1)
+            
+        self.request_drinks_status = rospy.ServiceProxy("request_drinks_status",
+                                                        RequestDrinksStatus)
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Arrived with orders, off-loading")
@@ -108,9 +112,18 @@ class SayOrders(smach.State):
         application.app_data.talk_service(String(say))
         
         # Wait until the drinks are all taken...timeout too
-        rospy.sleep(4)
-        
-        return 'empty_tray'
+        for i in range(200): # 20 seconds timeout
+            response =  self.request_drinks_status()
+            status =  response.status.status
+            # check the number of drinks
+            n_drinks = sum([1 for x in status if x ])
+            if n_drinks == 0:
+                application.app_data.talk_service(String("See you later."))
+                return 'empty_tray'
+            rospy.sleep(0.1)
+            
+        application.app_data.status_publisher.publish("Not all beers taken.")
+        return 'empty_tray' # even though its not, this state has no other outcome
         
 """
 Once drinks offloads, this state is entered and marks the orders as completed
