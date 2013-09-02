@@ -8,7 +8,7 @@ import smach
 import smach_ros
 
 from monitor_states import BooleanMonitor, ButtonMonitor #go_button_monitor
-from go_to_station import CancelableGoToStation
+from go_to_station import CancelableGoToStation, GoToStation
 
 from talker.srv import Speach
 from std_msgs.msg import Bool,  String
@@ -16,21 +16,21 @@ from web_connector.srv import *
 
 import sm_global_data as application
 
-class GoToBase(smach.State):
-    def __init__(self):
-        smach.State.__init__(self,
-            outcomes    = ['succeeded']
-        )
-        #create client for service
+#class GoToBase(smach.State):
+    #def __init__(self):
+        #smach.State.__init__(self,
+            #outcomes    = ['succeeded']
+        #)
+        ##create client for service
+        ##rospy.sleep(1)
+
+
+    #def execute(self,userdata):
+        ##execute service
+        #application.app_data.status_publisher.publish("Going to base station.")
+
         #rospy.sleep(1)
-
-
-    def execute(self,userdata):
-        #execute service
-        application.app_data.status_publisher.publish("Going to base station.")
-
-        rospy.sleep(1)
-        return 'succeeded'
+        #return 'succeeded'
 
 
 class GetAndMarkOrders(smach.State):
@@ -88,6 +88,7 @@ class GetAndMarkOrders(smach.State):
         application.app_data.order_list =  this_round
         application.app_data.n_drinks = carrying
         
+        application.app_data.status_publisher.publish("Load orders and press go!")        
         return 'succeeded'        
 
 
@@ -164,7 +165,7 @@ def main():
     # Create a SMACH state machine
     butler_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
     with butler_sm:
-        smach.StateMachine.add('GO_TO_BASE', GoToBase(),
+        smach.StateMachine.add('GO_TO_BASE', GoToStation(to_base=True),
                                transitions={'succeeded':'GET_AND_MARK_ORDERS'})
         smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(),
                                transitions={'succeeded':'WAIT_FOR_GO',

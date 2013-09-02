@@ -10,17 +10,24 @@ from drink_sensor.srv import *
 import sm_global_data as application
 from std_msgs.msg import String
 
+"""
+Low level state that navigates to a station
+"""
 class GoToStation(smach.State):
-    def __init__(self):
+    def __init__(self,  to_base=False):
         smach.State.__init__(self,
-            outcomes    = ['succeeded']
-        )
+                             outcomes    = ['succeeded']
+                             )
+        self.going_to_base = to_base
         
         #rospy.sleep(1)
 
 
     def execute(self,userdata):
-        application.app_data.status_publisher.publish("Traveling to QR code.")
+        if not self.going_to_base:
+            application.app_data.status_publisher.publish("Traveling to QR code.")
+        else:
+            application.app_data.status_publisher.publish("Returning to base.")
         for i in range(100):
             if self.preempt_requested():
                 self.service_preempt()
@@ -28,7 +35,10 @@ class GoToStation(smach.State):
             rospy.sleep(0.05)
         return 'succeeded'
         
-
+"""
+Low level state that says "Return drinks" and waits until drink sensor
+has the correct number of drinks. Times out.
+"""
 class AskBottleBack(smach.State):
     def __init__(self):
         smach.State.__init__(self,
