@@ -132,7 +132,7 @@ class MarkOrdersComplete(smach.State):
         
         
 def main():
-    rospy.init_node('buttler')
+    rospy.init_node('butler_executive')
     
     # Initialise talking services
     try:
