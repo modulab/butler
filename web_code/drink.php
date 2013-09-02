@@ -63,6 +63,14 @@
 <body>
 <?PHP  
 $station=$_GET["station"];
+
+if ( ($station != '1') &&
+     ($station != '2') &&
+     ($station != '3') &&
+     ($station != '4') ) {
+echo "Error: bad station";
+exit;
+}
 ?>
 <div class="container-narrow">
 	<div class="masthead">

@@ -40,6 +40,6 @@ if (flock($lock, LOCK_EX)) {
 	echo "Error 42.";	
 }
 $encoded_name=urlencode($name);
-header("Location: http://cs.bham.ac.uk/~burbrcjc/bsf2013_2/placed_order.php?name=$encoded_name&order=$order_number");
+header("Location: http://cs.bham.ac.uk/~burbrcjc/bsf2013/placed_order.php?name=$encoded_name&order=$order_number");
 exit;
 ?>

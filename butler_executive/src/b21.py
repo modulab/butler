@@ -8,31 +8,21 @@ import smach
 import smach_ros
 
 from monitor_states import BooleanMonitor, ButtonMonitor #go_button_monitor
-from go_to_station import cancelable_go_to_station
+from go_to_station import CancelableGoToStation, JoystickOverideableGoToStation
 
 from talker.srv import Speach
 from std_msgs.msg import Bool,  String
 from web_connector.srv import *
+from drink_sensor.srv import * 
 
 import sm_global_data as application
 
-class GoToBase(smach.State):
-    def __init__(self):
-        smach.State.__init__(self,
-            outcomes    = ['succeeded']
-        )
-        #create client for service
-        #rospy.sleep(1)
-
-
-    def execute(self,userdata):
-        #execute service
-        application.app_data.status_publisher.publish("Going to base station.")
-
-        rospy.sleep(1)
-        return 'succeeded'
-
-
+"""
+State the gets the current orders, selects which ones to process, marks them
+as active and exits 'succeeded' if orders, 'no_orders' if nothing to do.
+The selected orders are then stored in the globabl application data singleton
+for use in other states.
+"""
 class GetAndMarkOrders(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -56,7 +46,7 @@ class GetAndMarkOrders(smach.State):
         #execute service
         resp = self.get_orders()
         orders = resp.orders
-        application.app_data.status_publisher.publish("  found "+str(len(orders)))
+        application.app_data.status_publisher.publish(" -> found "+str(len(orders)))
         
         if len(orders) < 1:
             rospy.sleep(10)
@@ -81,44 +71,64 @@ class GetAndMarkOrders(smach.State):
         req =  MarkActiveOrdersRequest()
         req.order_ids = []
         for order in this_round:
-            application.app_data.status_publisher.publish(":: activating "+str(order.order_id))
-
             req.order_ids.append(order.order_id)
+            
         self.mark_active_orders(req)
         
         application.app_data.order_list =  this_round
         application.app_data.n_drinks = carrying
         
+        application.app_data.status_publisher.publish("Load " + str(carrying) +" beers and press go!")        
         return 'succeeded'        
 
 
+"""
+Say orders is entered when the robot gets to a drink station to offload drinks.
+It speaks the name of the people the order is for and waits for the drink caddy
+to be empty. Timeout after X seconds.
+"""
 class SayOrders(smach.State):
     def __init__(self):
         smach.State.__init__(self,
             outcomes    = ['empty_tray']
         )
-        #create client for speaking service
-        #subscribe to beer button topic
-        self.tray_empty=False
-        #rospy.sleep(1)
-
-    def beer_button_cb(self,msg):
-        self.tray_empty=msg.is_tray_empty
+        
+        # service to query drinks status
+        try:
+            rospy.wait_for_service("request_drinks_status", 4)
+        except:
+            rospy.logerr("Can't find drink sensor services!")
+            sys.exit(1)
+            
+        self.request_drinks_status = rospy.ServiceProxy("request_drinks_status",
+                                                        RequestDrinksStatus)
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Arrived with orders, off-loading")
         # Say the names of the peoples orders
         say =  "Order here for "
         for order in application.app_data.order_list:
-            say = say + order.name + ", "
+            say = say + order.name + " and "
         application.app_data.talk_service(String(say))
         
         # Wait until the drinks are all taken...timeout too
-        rospy.sleep(4)
+        for i in range(200): # 20 seconds timeout
+            response =  self.request_drinks_status()
+            status =  response.status.status
+            # check the number of drinks
+            n_drinks = sum([1 for x in status if x ])
+            if n_drinks == 0:
+                application.app_data.talk_service(String("See you later."))
+                return 'empty_tray'
+            rospy.sleep(0.1)
+            
+        application.app_data.status_publisher.publish("Not all beers taken.")
+        return 'empty_tray' # even though its not, this state has no other outcome
         
-        return 'empty_tray'
-        
-        
+"""
+Once drinks offloads, this state is entered and marks the orders as completed
+on the server.
+"""
 class MarkOrdersComplete(smach.State):
     def __init__(self):
         smach.State.__init__(self,
@@ -148,7 +158,7 @@ class MarkOrdersComplete(smach.State):
         
         
 def main():
-    rospy.init_node('buttler')
+    rospy.init_node('butler_executive')
     
     # Initialise talking services
     try:
@@ -165,7 +175,7 @@ def main():
     # Create a SMACH state machine
     butler_sm = smach.StateMachine(outcomes=['succeeded','aborted'])
     with butler_sm:
-        smach.StateMachine.add('GO_TO_BASE', GoToBase(),
+        smach.StateMachine.add('GO_TO_BASE', JoystickOverideableGoToStation(to_base=True),
                                transitions={'succeeded':'GET_AND_MARK_ORDERS'})
         smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(),
                                transitions={'succeeded':'WAIT_FOR_GO',
@@ -174,7 +184,7 @@ def main():
                                transitions={'invalid':'CANCELABLE_GO_TO_STATION',
                                             'valid':'WAIT_FOR_GO',
                                             'preempted':'WAIT_FOR_GO'})
-        smach.StateMachine.add('CANCELABLE_GO_TO_STATION', cancelable_go_to_station(),
+        smach.StateMachine.add('CANCELABLE_GO_TO_STATION', CancelableGoToStation(),
                                transitions={'arrived_to_station':'SAY_ORDERS',
                                             'forced_completion':'SAY_ORDERS',
                                             'cancelled':'GO_TO_BASE'})
