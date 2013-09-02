@@ -48,10 +48,6 @@ public class Markers extends AbstractNodeMain {
 			"/home/sean/ROS/butler_workspace/butler/qr/locations.xml");
 	private Publisher<MoveBaseActionGoal> goalPub, baseGoalPub;
 	private Log log;
-	private ConnectedNode node;
-	private GetOrdersResponse getOrdersResponse;
-	private GetActiveOrdersResponse getActiveOrdersResponse;
-	private MarkActiveOrdersResponse markActiveOrdersResponse;
 
 	@Override
 	public GraphName getDefaultNodeName() {
@@ -61,7 +57,6 @@ public class Markers extends AbstractNodeMain {
 	@Override
 	public void onStart(ConnectedNode node) {
 		log = node.getLog();
-		this.node = node;
 
 		baseGoalPub = node.newPublisher("butler/base_goal",
 				MoveBaseActionGoal._TYPE);
@@ -80,6 +75,16 @@ public class Markers extends AbstractNodeMain {
 					}
 				});
 
+		Subscriber<Int32> goSub = node.newSubscriber(
+				"crowded_nav/go", Int32._TYPE);
+
+		goSub.addMessageListener(new MessageListener<Int32>() {
+			@Override
+			public void onNewMessage(Int32 update) {
+				sendGoalMessage(update.getData());
+			}
+		});
+
 		readXML(node);
 
 		try {
@@ -88,129 +93,8 @@ public class Markers extends AbstractNodeMain {
 			e.printStackTrace();
 		}
 
-		createGoalMessage(0, true);
+		sendGoalMessage(0, true);
 
-		Subscriber<Int32> goalPointSub = node.newSubscriber("qr_markers/goal",
-				Int32._TYPE);
-		goalPointSub.addMessageListener(new MessageListener<Int32>() {
-
-			@Override
-			public void onNewMessage(Int32 goalPoint) {
-				createGoalMessage(goalPoint.getData());
-			}
-		});
-
-		node.newServiceServer(
-				"qr/get_goal",
-				GetOrders._TYPE,
-				new ServiceResponseBuilder<GetOrdersRequest, GetOrdersResponse>() {
-
-					@Override
-					public void build(GetOrdersRequest arg0,
-							GetOrdersResponse arg1) throws ServiceException {
-
-						List<Order> orders = getOrders();
-						List<String> activeOrders = getActiveOrders();
-
-						if (activeOrders.size() == 0) {
-							activeOrders = markActiveOrders();
-						}
-						boolean failed = true;
-						if (activeOrders.size() > 0) {
-							for (Order o : orders) {
-								if (o.getOrderId() == activeOrders.get(0)) {
-									o.setGoal(createGoalMessage(Integer.parseInt(o.getStationId())));
-									arg1.getOrders().add(o);
-									failed = false;
-								}
-							}
-
-							if (failed == true) {
-								log.error("Failed to find active order in order list");
-							}
-						} else {
-							log.info("No active orders");
-						}
-					}
-				});
-
-	}
-
-	private List<Order> getOrders() {
-		ServiceClient<GetOrdersRequest, GetOrdersResponse> getOrdersClient = null;
-		try {
-			getOrdersClient = node.newServiceClient(
-					"RosWebInterface/get_orders", Order._TYPE);
-		} catch (Exception e) {
-		}
-		getOrdersClient.call(getOrdersClient.newMessage(),
-				new ServiceResponseListener<GetOrdersResponse>() {
-
-					@Override
-					public void onSuccess(GetOrdersResponse arg0) {
-						getOrdersResponse = arg0;
-					}
-
-					@Override
-					public void onFailure(RemoteException arg0) {
-						log.error("Failed to get orders");
-					}
-				});
-		return getOrdersResponse.getOrders();
-	}
-
-	private List<String> getActiveOrders() {
-		ServiceClient<GetActiveOrdersRequest, GetActiveOrdersResponse> getActiveOrdersClient = null;
-		try {
-			getActiveOrdersClient = node.newServiceClient(
-					"RosWebInterface/get_active_orders", Order._TYPE);
-		} catch (Exception e) {
-		}
-		getActiveOrdersClient.call(getActiveOrdersClient.newMessage(),
-				new ServiceResponseListener<GetActiveOrdersResponse>() {
-
-					@Override
-					public void onSuccess(GetActiveOrdersResponse arg0) {
-						getActiveOrdersResponse = arg0;
-					}
-
-					@Override
-					public void onFailure(RemoteException arg0) {
-						log.error("Failed to get active orders");
-					}
-				});
-		return getActiveOrdersResponse.getOrderIds();
-	}
-
-	private List<String> markActiveOrders() {
-		List<Order> orders = getOrders();
-
-		List<String> activeOrders = new ArrayList<String>();
-
-		activeOrders.add(orders.get(0).getOrderId());
-
-		ServiceClient<MarkActiveOrdersRequest, MarkActiveOrdersResponse> markActiveOrdersClient = null;
-		try {
-			markActiveOrdersClient = node.newServiceClient(
-					"RosWebInterface/mark_active_orders", Order._TYPE);
-		} catch (Exception e) {
-		}
-		MarkActiveOrdersRequest request = markActiveOrdersClient.newMessage();
-		request.setOrderIds(activeOrders);
-		markActiveOrdersClient.call(request,
-				new ServiceResponseListener<MarkActiveOrdersResponse>() {
-
-					@Override
-					public void onSuccess(MarkActiveOrdersResponse arg0) {
-						markActiveOrdersResponse = arg0;
-					}
-
-					@Override
-					public void onFailure(RemoteException arg0) {
-						log.error("Failed to mark active orders");
-					}
-				});
-		return activeOrders;
 	}
 
 	private void readXML(ConnectedNode node) {
@@ -299,11 +183,11 @@ public class Markers extends AbstractNodeMain {
 		}
 	}
 
-	private MoveBaseActionGoal createGoalMessage(int id) {
-		return createGoalMessage(id, false);
+	private MoveBaseActionGoal sendGoalMessage(int id) {
+		return sendGoalMessage(id, false);
 	}
 
-	private MoveBaseActionGoal createGoalMessage(int id, boolean base) {
+	private MoveBaseActionGoal sendGoalMessage(int id, boolean base) {
 		MoveBaseActionGoal goalMsg = goalPub.newMessage();
 
 		try {

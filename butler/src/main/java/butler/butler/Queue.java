@@ -39,34 +39,33 @@ import actionlib_msgs.GoalStatusArray;
 
 public class Queue extends AbstractNodeMain {
 
-	private final long QR_GOAL_WAIT_TIME = 15000;
-	private final boolean GO_TO_BASE = false;
+	private final int MAX_RECOVERY_LOOPS = 3;
 
 	private GoalStatusArray lastStatus;
 	private Publisher<GoalID> cancelPub;
 	private Publisher<MoveBaseActionGoal> goalPub;
 	private Publisher<PoseArray> butlerGoalPub;
-	private Publisher<Bool> openLidPub;
-	private Publisher<Bool> recoveryBehaviourPub;
+	private Publisher<Bool> recoveryBehaviourPub, resultPub;
 	private Publisher<PoseArray> recoveryPlanPub;
+	private Publisher<std_msgs.String> feedbackPub;
 
 	private ArrayList<QueueGoal> goals = new ArrayList<QueueGoal>();
 	private MoveBaseActionGoal baseGoal;
 	private static int goalNumber = 0;
-	private boolean waitForDrinks = false, recoveryAttempted = false;
+	private boolean recoveryAttempted = false;
 	private PoseWithCovarianceStamped currentLocation;
 	private Path currentRecoveryPlan = null;
 	private int recoveryNumber = 90;
+	private int recoveryLoop = 1;
 	private ConnectedNode node;
 	private String validGoal = "";
 	private String invalidGoal = "";
+	private Object goalsLock = new Object();
 
 	@Override
 	public GraphName getDefaultNodeName() {
 		return GraphName.of("butler/queue");
 	}
-
-	// TODO Add way to pause
 
 	@Override
 	public void onStart(final ConnectedNode node) {
@@ -121,17 +120,42 @@ public class Queue extends AbstractNodeMain {
 			public void onNewMessage(Twist update) {
 				if (!zeroVelocity(update)) {
 					recoveryNumber = 90;
+					recoveryLoop = 1;
 				}
 			}
 		});
 
-		Subscriber<Empty> drinksAddedSub = node.newSubscriber(
-				"butler/drinks_added", Empty._TYPE);
+		Subscriber<MoveBaseActionGoal> goalSub = node.newSubscriber("butler/goal",
+				MoveBaseActionGoal._TYPE);
 
-		drinksAddedSub.addMessageListener(new MessageListener<Empty>() {
+		goalSub.addMessageListener(new MessageListener<MoveBaseActionGoal>() {
 			@Override
-			public void onNewMessage(Empty update) {
-				waitForDrinks = false;
+			public void onNewMessage(MoveBaseActionGoal update) {
+				addQRGoal(update);
+			}
+		});
+
+		Subscriber<Bool> stopSub = node.newSubscriber("crowded_nav/stop",
+				Bool._TYPE);
+
+		stopSub.addMessageListener(new MessageListener<Bool>() {
+			@Override
+			public void onNewMessage(Bool update) {
+				feedback("Stopping...");
+				result(true);
+				if (update.getData()) {
+					synchronized (goalsLock) {
+						while (goals.size() > 0) {
+							try {
+								goals.remove(goals.size() - 1);
+							} catch (Exception e) {
+								feedback("Failed to remove goal from Queue");
+							}
+						}
+					}
+
+					cancelAllGoals();
+				}
 			}
 		});
 
@@ -152,26 +176,17 @@ public class Queue extends AbstractNodeMain {
 		statusSub.addMessageListener(new MessageListener<GoalStatusArray>() {
 			@Override
 			public void onNewMessage(GoalStatusArray update) {
-				if (goals.size()==0){
-					getNewOrders();
-				}
-				
+
 				if (goals.size() > 0
 						&& goals.get(0).getStatus() == QueueGoal.STOPPED_STATUS) {
 					executeGoal();
-
-					// if (goals.get(0).getType() == QueueGoal.QR_TYPE) {
-					// executeRecovery3();
-					// } else {
-					// executeGoal();
-					// }
 				}
 
 				if (goals.size() > 0
 						&& update.getStatusList().size() > 0
 						&& update.getStatusList().get(0).getStatus() == GoalStatus.SUCCEEDED) {
 					recoveryNumber = 90;
-					System.out.println("c");
+					recoveryLoop = 1;
 					if (goals
 							.get(0)
 							.getGoal()
@@ -184,38 +199,19 @@ public class Queue extends AbstractNodeMain {
 								+ " "
 								+ update.getStatusList().get(0).getGoalId()
 										.getId());
-						System.out.println("a");
 
 						if (goals.get(0).getType() != QueueGoal.RECOVERY_TYPE) {
 							recoveryAttempted = false;
 						}
 
 						if (goals.get(0).getType() == QueueGoal.QR_TYPE) {
-							openLid(true);
-							try {
-								Thread.sleep(QR_GOAL_WAIT_TIME);
-							} catch (Exception e) {
-							}
-							markOrderComplete(goals.get(0).getId());
+							result(true);
 						}
-
-						else if (goals.get(0).getType() == QueueGoal.BASE_TYPE) {
-							System.out.println("b");
-							waitForDrinks = true;
-							openLid(true);
-							try {
-								while (waitForDrinks) {
-									Thread.sleep(1000);
-									System.out.println("Waiting for drinks...");
-								}
-								Thread.sleep(3000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
+						synchronized (goalsLock) {
+							goals.remove(0);
 						}
-
-						goals.remove(0);
 					} else {
+						// TODO Deal with move_base...
 						System.out.println("Waiting for move_base... "
 								+ goals.get(0).getGoal().getGoalId().getId()
 								+ " "
@@ -237,7 +233,9 @@ public class Queue extends AbstractNodeMain {
 							.equals(update.getStatusList().get(0).getGoalId()
 									.getId())) {
 						if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
-							goals.remove(0);
+							synchronized (goalsLock) {
+								goals.remove(0);
+							}
 						}
 
 						if (recoveryNumber != 0) {
@@ -256,78 +254,20 @@ public class Queue extends AbstractNodeMain {
 		cancelPub = node.newPublisher("move_base/cancel", GoalID._TYPE);
 		recoveryBehaviourPub = node.newPublisher(
 				"butler/enable_recovery_behaviours", Bool._TYPE);
-		openLidPub = node.newPublisher("butler/lid_open", Bool._TYPE);
 		recoveryPlanPub = node.newPublisher("butler/planner/make_plan",
 				PoseArray._TYPE);
+		feedbackPub = node.newPublisher("crowded_nav/feedback",
+				std_msgs.String._TYPE);
+		resultPub = node.newPublisher("crowded_nav/result", Bool._TYPE);
 
 		try {
 			Thread.sleep(2000);
 			cancelAllGoals();
 			Thread.sleep(2000);
-
-			// addRandomGoal();
-			// addQRGoal(goalPub.newMessage());
-			// testGoal();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
-	}
-
-	private void markOrderComplete(String goalId) {
-		ServiceClient<MarkOrderCompleteRequest, MarkOrderCompleteResponse> markOrderCompleteClient = null;
-		try {
-			markOrderCompleteClient = node.newServiceClient(
-					"RosWebInterface/mark_order_complete", Order._TYPE);
-		} catch (Exception e) {
-		}
-		MarkOrderCompleteRequest request = markOrderCompleteClient.newMessage();
-		request.setOrderId(goalId);
-		markOrderCompleteClient.call(request,
-				new ServiceResponseListener<MarkOrderCompleteResponse>() {
-
-					@Override
-					public void onSuccess(MarkOrderCompleteResponse arg0) {
-					}
-
-					@Override
-					public void onFailure(RemoteException arg0) {
-						System.out.println("Failed to mark order complete");
-					}
-				});
-	}
-	
-	private void getNewOrders(){
-		ServiceClient<GetOrdersRequest, GetOrdersResponse> getOrdersClient = null;
-		try {
-			getOrdersClient = node.newServiceClient(
-					"qr/get_goal", Order._TYPE);
-		} catch (Exception e) {
-		}
-		GetOrdersRequest request = getOrdersClient.newMessage();
-		getOrdersClient.call(request,
-				new ServiceResponseListener<GetOrdersResponse>() {
-
-					@Override
-					public void onSuccess(GetOrdersResponse arg0) {
-						for (Order o:arg0.getOrders()){
-							addQRGoal(o);
-						}
-						
-						if(arg0.getOrders().size()==0){
-							try {
-								Thread.sleep(5000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
-						}
-					}
-
-					@Override
-					public void onFailure(RemoteException arg0) {
-						System.out.println("Failed to get new orders from butler.qr.Markers");
-					}
-				});
 	}
 
 	private void cancelAllGoals() {
@@ -338,60 +278,35 @@ public class Queue extends AbstractNodeMain {
 		}
 	}
 
-	private void testGoal() {
-		MoveBaseActionGoal testMsg = goalPub.newMessage();
-		testMsg.getGoalId().setId("99");
-		testMsg.getGoal().getTargetPose().getPose().getPosition()
-				.setX(1.7322527721303649);
-		testMsg.getGoal().getTargetPose().getPose().getOrientation()
-				.setW(0.9498120473522184);
-		goalPub.publish(testMsg);
-	}
+	private void addQRGoal(MoveBaseActionGoal goal) {
+		if (goals.size() == 0) {
 
-	private void addQRGoal(Order newOrder) {
-		int i;
-		for (i = 0; i < goals.size(); i++) {
-			if (goals.get(i).getType() != QueueGoal.QR_TYPE) {
-				break;
-			}
-		}
+			goal.getGoalId().setId(goalNumber + "");
+			goalNumber++;
+			QueueGoal newQueueGoal = new QueueGoal(goal, QueueGoal.QR_TYPE);
+synchronized(goalsLock){
+			goals.add(newQueueGoal);}
 
-		newOrder.getGoal().getGoalId().setId(goalNumber + "");
-		goalNumber++;
-		QueueGoal newQueueGoal = new QueueGoal(newOrder.getGoal(),
-				QueueGoal.QR_TYPE, newOrder.getOrderId(),
-				newOrder.getStationId(), newOrder.getDrinks(),
-				newOrder.getName());
+			System.out.println("New queue:");
 
-		if (i > 0) {
-			goals.get(i - 1);
-			if (!goals.get(i - 1).equals(newQueueGoal)) {
-				if (GO_TO_BASE) {
-					addBaseGoal(i);
-					goals.add(i + 1, newQueueGoal);
-				} else {
-					goals.add(i, newQueueGoal);
-				}
-			}
 		} else {
-			if (GO_TO_BASE) {
-				addBaseGoal(i);
-				goals.add(i + 1, newQueueGoal);
-			} else {
-				goals.add(i, newQueueGoal);
-			}
+			feedback("Queue not empty. Discarding goal.");
 		}
 
-		System.out.println("New queue:");
 		for (QueueGoal qg : goals) {
-			System.out.println(qg.getGoal().getGoal().getTargetPose().getPose()
-					.getPosition().getX());
+			System.out.println(qg.getGoal().getGoalId().getId()
+					+ ": ("
+					+ qg.getGoal().getGoal().getTargetPose().getPose()
+							.getPosition().getX()
+					+ ","
+					+ qg.getGoal().getGoal().getTargetPose().getPose()
+							.getPosition().getY() + ")");
 		}
 		System.out.println();
 	}
 
 	private void executeGoal() {
-		System.out.println("pub");
+		System.out.println("Publishing...");
 		cancelAllGoals();
 		if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
 			setRecoveryBehaviour(false);
@@ -401,48 +316,6 @@ public class Queue extends AbstractNodeMain {
 
 		goalPub.publish(goals.get(0).getGoal());
 		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
-		openLid(false);
-	}
-
-	private void addBaseGoal(int i) {
-		// TODO Only add if different to the QR goal
-		if (baseGoal != null) {
-			MoveBaseActionGoal newBaseGoal = goalPub.newMessage();
-			newBaseGoal.getGoalId().setId(goalNumber + "");
-			newBaseGoal.getGoal().getTargetPose().getHeader().setFrameId("map");
-			newBaseGoal
-					.getGoal()
-					.getTargetPose()
-					.getPose()
-					.getPosition()
-					.setX(baseGoal.getGoal().getTargetPose().getPose()
-							.getPosition().getX());
-			newBaseGoal
-					.getGoal()
-					.getTargetPose()
-					.getPose()
-					.getPosition()
-					.setY(baseGoal.getGoal().getTargetPose().getPose()
-							.getPosition().getY());
-			newBaseGoal
-					.getGoal()
-					.getTargetPose()
-					.getPose()
-					.getOrientation()
-					.setZ(baseGoal.getGoal().getTargetPose().getPose()
-							.getOrientation().getZ());
-			newBaseGoal
-					.getGoal()
-					.getTargetPose()
-					.getPose()
-					.getOrientation()
-					.setW(baseGoal.getGoal().getTargetPose().getPose()
-							.getOrientation().getW());
-			goalNumber++;
-			goals.add(i, new QueueGoal(newBaseGoal, QueueGoal.BASE_TYPE));
-		} else {
-			System.out.println("Base goal has not been received");
-		}
 	}
 
 	private void executeRecovery4() {
@@ -468,6 +341,7 @@ public class Queue extends AbstractNodeMain {
 								.get((int) (path.getPoses().size() * 0.01 * recoveryNumber)));
 
 		newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+
 		newGoalMsg.getGoalId().setId(
 				goals.get(0).getGoal().getGoalId().getId() + "_rec_"
 						+ recoveryNumber);
@@ -503,8 +377,9 @@ public class Queue extends AbstractNodeMain {
 		}
 
 		if (publish) {
+			synchronized(goalsLock){
 			goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
-			System.out.println("Publishing: " + newGoalMsg.getGoalId().getId());
+			System.out.println("Publishing: " + newGoalMsg.getGoalId().getId());}
 		}
 
 		System.out.println("New queue:");
@@ -530,13 +405,14 @@ public class Queue extends AbstractNodeMain {
 			recoveryNumber -= 2;
 
 			if (recoveryNumber == 0) {
-				// if (publish) {
-				// goals.remove(1);
-				// } else {
-				// goals.remove(0);
-				// }
-				// System.out.println("Failed to reach goal");
-				recoveryNumber = 90;
+				if (recoveryLoop == MAX_RECOVERY_LOOPS) {
+					feedback("Attempted " + MAX_RECOVERY_LOOPS
+							+ " recovery loops. Aborting...");
+					result(false);
+					cancelAllGoals();
+				} else {
+					recoveryNumber = 90;
+				}
 			}
 		}
 		recoveryAttempted = true;
@@ -574,17 +450,6 @@ public class Queue extends AbstractNodeMain {
 				&& twist.getLinear().getX() == 0
 				&& twist.getLinear().getY() == 0
 				&& twist.getLinear().getZ() == 0;
-	}
-
-	private void openLid(boolean open) {
-		Bool lidMsg = openLidPub.newMessage();
-		lidMsg.setData(open);
-		openLidPub.publish(lidMsg);
-		if (open) {
-			System.out.println("Opening lid...");
-		} else {
-			System.out.println("Closing lid...");
-		}
 	}
 
 	private void setRecoveryBehaviour(boolean value) {
@@ -670,8 +535,20 @@ public class Queue extends AbstractNodeMain {
 		if (!planSucceeded) {
 			System.out.println("Failed to receive initial recovery plan");
 		}
-
 		return planSucceeded;
+	}
 
+	private void feedback(String message) {
+		System.out.println(message);
+
+		std_msgs.String feedbackMsg = feedbackPub.newMessage();
+		feedbackMsg.setData(message);
+		feedbackPub.publish(feedbackMsg);
+	}
+
+	private void result(boolean result) {
+		Bool resultMsg = resultPub.newMessage();
+		resultMsg.setData(result);
+		resultPub.publish(resultMsg);
 	}
 }
