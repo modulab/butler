@@ -8,7 +8,7 @@ from monitor_states import *
 from drink_sensor.srv import * 
 
 import sm_global_data as application
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32, Bool
 
 """
 Low level state that navigates to a station
@@ -19,21 +19,46 @@ class GoToStation(smach.State):
                              outcomes    = ['succeeded']
                              )
         self.going_to_base = to_base
-        
+        self.crowded_nav_go_pub =  rospy.Publisher("/crowded_nav/go", Int32)
+        self.crowded_nav_stop_pub =  rospy.Publisher("/crowded_nav/stop", Bool)
+        self.crowded_nav_result_sub =  rospy.Subscriber("/crowded_nav/result",
+                                                        Bool,
+                                                        self.result_cb)
+        self.crowded_nav_feedback_sub =  rospy.Subscriber("/crowded_nav/feedback",
+                                                        String,
+                                                        self.feedback_cb)
         #rospy.sleep(1)
 
 
     def execute(self,userdata):
         if not self.going_to_base:
-            application.app_data.status_publisher.publish("Traveling to QR code.")
+            station_id =  int(application.app_data.order_list[0].station_id)
+            application.app_data.status_publisher.publish("Traveling to QR code ." + str(station_id))
         else:
             application.app_data.status_publisher.publish("Returning to base.")
-        for i in range(100):
+            station_id =  0
+            
+        self.status =  None
+        self.crowded_nav_go_pub.publish(station_id)
+        while True:
             if self.preempt_requested():
                 self.service_preempt()
+                self.crowded_nav_stop_pub.publish(True)
                 return 'preempted'
-            rospy.sleep(0.05)
+            if self.status is not None:
+                if self.status:
+                    return 'succeeded'
+                else:
+                    application.app_data.status_publisher.publish("MOVE FAILED: try to joystick me.")
+            rospy.sleep(0.1)
+
         return 'succeeded'
+    
+    def result_cb(self, msg):
+        self.status = msg.data
+    
+    def feedback_cb(self, msg):
+        application.app_data.status_publisher.publish("[Crowded_Nav] "+msg.data)
     
 class JoystickMonitoredGotoStation(smach.Concurrence):
     def __init__(self,  to_base=False):
