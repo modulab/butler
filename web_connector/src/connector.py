@@ -5,10 +5,10 @@ except:
     print "Need the python-rquests library to connect to the web. Please install it."
     raise Exception("Can't find requests package")
 
-ORDERS_FILE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/data/orders.txt"
-ORDER_COMPLETE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/completed.php?order_number="
-ACTIVE_ORDERS_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/active_order.php?active_orders="
-ACTIVE_ORDERS_FILE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013_2/data/active.txt"
+ORDERS_FILE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013/data/orders.txt"
+ORDER_COMPLETE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013/completed.php?order_number="
+ACTIVE_ORDERS_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013/active_order.php?active_orders="
+ACTIVE_ORDERS_FILE_URL="http://www.cs.bham.ac.uk/~burbrcjc/bsf2013/data/active.txt"
 
 class WebInterface(object):
     def __init__(self):
