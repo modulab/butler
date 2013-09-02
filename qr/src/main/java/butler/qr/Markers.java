@@ -47,6 +47,7 @@ public class Markers extends AbstractNodeMain {
 	private File locations = new File(
 			"/home/sean/ROS/butler_workspace/butler/qr/locations.xml");
 	private Publisher<MoveBaseActionGoal> goalPub, baseGoalPub;
+	private Publisher<std_msgs.String> feedbackPub;
 	private Log log;
 
 	@Override
@@ -61,6 +62,9 @@ public class Markers extends AbstractNodeMain {
 		baseGoalPub = node.newPublisher("butler/base_goal",
 				MoveBaseActionGoal._TYPE);
 		baseGoalPub.setLatchMode(true);
+		
+		feedbackPub = node.newPublisher("crowded_nav/feedback",
+				std_msgs.String._TYPE);
 
 		goalPub = node.newPublisher("butler/goal", MoveBaseActionGoal._TYPE);
 
@@ -81,6 +85,7 @@ public class Markers extends AbstractNodeMain {
 		goSub.addMessageListener(new MessageListener<Int32>() {
 			@Override
 			public void onNewMessage(Int32 update) {
+				feedback("Moving to station "+update.getData());
 				sendGoalMessage(update.getData());
 			}
 		});
@@ -231,5 +236,13 @@ public class Markers extends AbstractNodeMain {
 			e.printStackTrace();
 		}
 		return goalMsg;
+	}
+	
+	private void feedback(String message) {
+		System.out.println(message);
+
+		std_msgs.String feedbackMsg = feedbackPub.newMessage();
+		feedbackMsg.setData(message);
+		feedbackPub.publish(feedbackMsg);
 	}
 }

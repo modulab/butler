@@ -125,8 +125,8 @@ public class Queue extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<MoveBaseActionGoal> goalSub = node.newSubscriber("butler/goal",
-				MoveBaseActionGoal._TYPE);
+		Subscriber<MoveBaseActionGoal> goalSub = node.newSubscriber(
+				"butler/goal", MoveBaseActionGoal._TYPE);
 
 		goalSub.addMessageListener(new MessageListener<MoveBaseActionGoal>() {
 			@Override
@@ -239,7 +239,7 @@ public class Queue extends AbstractNodeMain {
 						}
 
 						if (recoveryNumber != 0) {
-							executeRecovery4();
+							executeRecovery();
 						}
 					}
 				}
@@ -284,8 +284,9 @@ public class Queue extends AbstractNodeMain {
 			goal.getGoalId().setId(goalNumber + "");
 			goalNumber++;
 			QueueGoal newQueueGoal = new QueueGoal(goal, QueueGoal.QR_TYPE);
-synchronized(goalsLock){
-			goals.add(newQueueGoal);}
+			synchronized (goalsLock) {
+				goals.add(newQueueGoal);
+			}
 
 			System.out.println("New queue:");
 
@@ -318,10 +319,11 @@ synchronized(goalsLock){
 		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
 	}
 
-	private void executeRecovery4() {
+	private void executeRecovery() {
 
 		if (recoveryNumber == 90) {
 			makeRecoveryPlan();
+			feedback("Attempting recovery loop "+recoveryLoop+"...");
 		}
 
 		System.out.println("Attempting recovery... " + recoveryNumber + "%");
@@ -377,9 +379,11 @@ synchronized(goalsLock){
 		}
 
 		if (publish) {
-			synchronized(goalsLock){
-			goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
-			System.out.println("Publishing: " + newGoalMsg.getGoalId().getId());}
+			synchronized (goalsLock) {
+				goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
+				System.out.println("Publishing: "
+						+ newGoalMsg.getGoalId().getId());
+			}
 		}
 
 		System.out.println("New queue:");
