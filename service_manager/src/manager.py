@@ -47,6 +47,8 @@ class App(object):
         btn_box.pack_start(cancel)
         done =  BooleanPublishButton("Flag done.", "/remote_buttons/mark_done", False)
         btn_box.pack_start(done)
+        done =  BooleanPublishButton("Joystick", "/remote_buttons/joystick", False)
+        btn_box.pack_start(done)
         vbox_r.pack_start(self.status_display)
         vbox_r.pack_start(btn_box,  False,  False)
         hbox.pack_start(vbox_r)

@@ -34,6 +34,60 @@ class GoToStation(smach.State):
                 return 'preempted'
             rospy.sleep(0.05)
         return 'succeeded'
+    
+class JoystickMonitoredGotoStation(smach.Concurrence):
+    def __init__(self):
+        smach.Concurrence.__init__(self, outcomes=['succeeded',
+                                                   'joystick_takeover'],
+                                   default_outcome='succeeded',
+                                   child_termination_cb=self.child_term_cb_stolen,
+                                   outcome_cb = self.out_cb_stolen,
+                                   )
+        with self:
+            smach.Concurrence.add('GO_TO_STATION', GoToStation())
+            smach.Concurrence.add('JOYSTICK_TAKEOVER_MONITOR',
+                                  ButtonMonitor("/remote_buttons/joystick"))
+
+    def child_term_cb_stolen(self, outcome_map):
+        # decide if this state is done when one or more concurrent inner states 
+        # stop
+        if (outcome_map['JOYSTICK_TAKEOVER_MONITOR'] == 'invalid' or
+            outcome_map["GO_TO_STATION"]=="succeeded"):
+            return True
+        return False
+    
+    def out_cb_stolen(self, outcome_map):
+        # determine what the outcome of this machine is
+        if outcome_map['JOYSTICK_TAKEOVER_MONITOR'] == 'invalid':
+            return 'joystick_takeover'
+        if  outcome_map["GO_TO_STATION"]=="succeeded":
+            return "succeeded"
+        
+class JoystickControl(smach.State):
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes    = ['succeeded', 'return_control']
+                             )
+
+    def execute(self,userdata):
+        application.app_data.status_publisher.publish("Under joystick control..")
+        # wait for button press to indicate return control
+        # or succeded
+        return 'succeeded'
+    
+class JoystickOverideableGoToStation(smach.StateMachine):
+    def __init__(self):
+        smach.StateMachine.__init__(self, outcomes=['succeeded'])
+        
+        with self:
+            smach.StateMachine.add('GOTO_STATION', JoystickMonitoredGotoStation(),
+                                   transitions={'joystick_takeover':'JOYSTICK_CONTROL',
+                                                'succeeded':'succeeded'})
+        
+            smach.StateMachine.add('JOYSTICK_CONTROL', JoystickControl(),
+                                   transitions={'return_control':'GOTO_STATION',
+                                                'succeeded':'succeeded'})
+        
         
 """
 Low level state that says "Return drinks" and waits until drink sensor
@@ -82,12 +136,12 @@ class AskBottleBack(smach.State):
         return 'timeout'
                 
 """
-A MonitoredGoToStation state executes the traveling to the goal at the same time
+A BottleMonitoredGoToStation state executes the traveling to the goal at the same time
 as checking that a drink is not stolen.
-Outcomes 'arrived_at_station' if good, if a bottle is stolen then GoToStation is
+Outcomes 'arrived_at_station' if good, if a bottle is stolen then JoystickOverideableGoToStation is
 canceld and the outcome is 'stolen_bottle'.
 """
-class MonitoredGoToStation(smach.Concurrence):
+class BottleMonitoredGoToStation(smach.Concurrence):
     def __init__(self):
         smach.Concurrence.__init__(self, outcomes=['arrived_to_station',
                                                    'stolen_bottle'],
@@ -96,7 +150,7 @@ class MonitoredGoToStation(smach.Concurrence):
                                    outcome_cb = self.out_cb_stolen,
                                    )
         with self:
-            smach.Concurrence.add('GO_TO_STATION', GoToStation())
+            smach.Concurrence.add('GO_TO_STATION', JoystickOverideableGoToStation())
             smach.Concurrence.add('STOLEN_BOTTLE_MONITOR',StolenBottleMonitor())
 
     def child_term_cb_stolen(self, outcome_map):
@@ -115,7 +169,7 @@ class MonitoredGoToStation(smach.Concurrence):
 
 
 """
-Steal aware navigation to station. MonitoredGoToStation <-> AskBottleBack
+Steal aware navigation to station. BottleMonitoredGoToStation <-> AskBottleBack
 Outcome -> arrived_to_station
 """
 class StealAwareGoToStation(smach.StateMachine):
@@ -127,7 +181,7 @@ class StealAwareGoToStation(smach.StateMachine):
                                    transitions={'bottle_back':'MONITORED_GO_TO_STATION',
                                                 'timeout':'MONITORED_GO_TO_STATION'})
         
-            monitored_go_to_station = MonitoredGoToStation()
+            monitored_go_to_station = BottleMonitoredGoToStation()
         
             smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,
                                    transitions={'stolen_bottle':'ASK_BOTTLE_BACK',

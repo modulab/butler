@@ -16,22 +16,6 @@ from web_connector.srv import *
 
 import sm_global_data as application
 
-#class GoToBase(smach.State):
-    #def __init__(self):
-        #smach.State.__init__(self,
-            #outcomes    = ['succeeded']
-        #)
-        ##create client for service
-        ##rospy.sleep(1)
-
-
-    #def execute(self,userdata):
-        ##execute service
-        #application.app_data.status_publisher.publish("Going to base station.")
-
-        #rospy.sleep(1)
-        #return 'succeeded'
-
 
 class GetAndMarkOrders(smach.State):
     def __init__(self):
