@@ -26,16 +26,20 @@ class App(object):
         hbox.pack_start(vbox)
         self.main_window.add(hbox)
 
+        rospy.loginfo("Creating robot display")
         robot_status = RobotStatusDisplay() 
         vbox.pack_start(robot_status, False, False)
 
+        rospy.loginfo("Creating orders display")
         orders_status = OrdersDisplay() 
         vbox.pack_start(orders_status, True, True)
 
+        rospy.loginfo("Creating drink sensor display")
         drinks_status = DrinksSensorDisplay()
         vbox.pack_start(drinks_status, False, False)
 
         # status messages
+        rospy.loginfo("Creating status message display")
         vbox_r =  gtk.VBox()
         self.status_display =  StatusMessageDisplay("/buttler_status_messages")
         
@@ -75,7 +79,7 @@ class DrinksSensorDisplay(gtk.Frame):
         
         self.drink_status_sub = rospy.Subscriber("/drinks_status",DrinksStatus, self.drinks_cb)
         
-        # Update the drink sensor display
+        ## Update the drink sensor display
         try:
             rospy.wait_for_service("request_drinks_status", 1)
             self.get_drink_status_srv = rospy.ServiceProxy("request_drinks_status",RequestDrinksStatus)
@@ -106,12 +110,12 @@ class RobotStatusDisplay(gtk.Frame):
         robot_status_v.pack_start(self.battery_label,False,False)
         robot_status_v.pack_start(self.brake_button, False, False)
         self.add(robot_status_v)
+        self.brakes_on = False
         
         self.battery_sub = rospy.Subscriber("/b21/voltage", Float32,self.battery_cb)
         self.brake_sub = rospy.Subscriber("/b21/brake_power", Bool, self.brake_cb)
         self.brake_pub = rospy.Publisher("/b21/cmd_brake_power", Bool)
 
-        self.brakes_on = False
 
     def brake_button_cb(self, btn):
         self.brake_pub.publish(not self.brakes_on)
