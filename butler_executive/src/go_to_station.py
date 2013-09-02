@@ -71,29 +71,43 @@ class AskBottleBack(smach.State):
 
         return 'timeout'
                 
+"""
+A MonitoredGoToStation state executes the traveling to the goal at the same time
+as checking that a drink is not stolen.
+"""
+class MonitoredGoToStation(smach.Concurrence):
+    def __init__(self):
+        smach.Concurrence.__init__(self, outcomes=['arrived_to_station',
+                                                   'stolen_bottle'],
+                                   default_outcome='arrived_to_station',
+                                   child_termination_cb=self.child_term_cb_stolen,
+                                   outcome_cb = self.out_cb_stolen,
+                                   )
+        with self:
+            smach.Concurrence.add('GO_TO_STATION', GoToStation())
+            smach.Concurrence.add('STOLEN_BOTTLE_MONITOR',StolenBottleMonitor())
 
-
-# outcome maps for the concurrence container
-# The cild termination callback decided when the concurrence container should be
-# terminated, bases on the outcomes of its children. When it outputs True, the 
-# container terminates and the concurrence container outcome callback is called
-def child_term_cb_stolen(outcome_map):
-    if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid' or outcome_map["GO_TO_STATION"]=="succeeded":
-        return True
-    return False
-
-
-# The concurrence container outcome callback maps the outcomes of the 
-# container's children into an outcome for the concurrence container itself   
-def out_cb_stolen(outcome_map):
-    # rospy.sleep(0.1) without this sleep, sometimes the concurrence container 
-    # terminates before all its children terminate, and an error is printed.
-    # However, that does not affect the evolution, and I think that with the 
-    # sleep sometimes the container blocks and never terminates
-    if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid':
-        return 'stolen_bottle'
-    if  outcome_map["GO_TO_STATION"]=="succeeded":
-        return "arrived_to_station"
+    # outcome maps for the concurrence container
+    # The cild termination callback decided when the concurrence container should be
+    # terminated, bases on the outcomes of its children. When it outputs True, the 
+    # container terminates and the concurrence container outcome callback is called
+    def child_term_cb_stolen(self, outcome_map):
+        if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid' or outcome_map["GO_TO_STATION"]=="succeeded":
+            return True
+        return False
+    
+    
+    # The concurrence container outcome callback maps the outcomes of the 
+    # container's children into an outcome for the concurrence container itself   
+    def out_cb_stolen(self, outcome_map):
+        # rospy.sleep(0.1) without this sleep, sometimes the concurrence container 
+        # terminates before all its children terminate, and an error is printed.
+        # However, that does not affect the evolution, and I think that with the 
+        # sleep sometimes the container blocks and never terminates
+        if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid':
+            return 'stolen_bottle'
+        if  outcome_map["GO_TO_STATION"]=="succeeded":
+            return "arrived_to_station"
 
 
 #Move base + recovery behaviour. The number of move_base fails is sent from the
@@ -106,21 +120,16 @@ def steal_aware_go_to_station():
                                transitions={'bottle_back':'MONITORED_GO_TO_STATION',
                                             'timeout':'MONITORED_GO_TO_STATION'})
         
-        monitored_go_to_station=smach.Concurrence(outcomes=['arrived_to_station','stolen_bottle'],
-                                                    default_outcome='arrived_to_station',
-                                                    child_termination_cb=child_term_cb_stolen,
-                                                    outcome_cb = out_cb_stolen,
-                                                    )
-                                                    
-        with monitored_go_to_station:
-            smach.Concurrence.add('GO_TO_STATION', GoToStation())
-            smach.Concurrence.add('STOLEN_BOTTLE_MONITOR',StolenBottleMonitor())
+        monitored_go_to_station = MonitoredGoToStation()
         
-        smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,  transitions={'stolen_bottle':'ASK_BOTTLE_BACK','arrived_to_station':'arrived_to_station'})
+        smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,
+                               transitions={'stolen_bottle':'ASK_BOTTLE_BACK',
+                                            'arrived_to_station':'arrived_to_station'})
         
     sm.set_initial_state(["MONITORED_GO_TO_STATION"])
         
     return sm
+
         
 # outcome maps for the concurrence container
 # The cild termination callback decided when the concurrence container should be 
