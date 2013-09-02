@@ -1,5 +1,5 @@
 <launch>
   <include file="$(find butler)/launch/butler_planner.launch" />
 
-  <node pkg="butler" type="execute" args="butler.butler.Queue" name="butler_queue" />
+  <node pkg="butler" type="execute" args="butler.butler.Queue" name="butler_queue" output="screen"/>
 </launch>
