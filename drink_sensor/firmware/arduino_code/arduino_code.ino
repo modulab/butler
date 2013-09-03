@@ -22,6 +22,7 @@ int command_recv_pos=0;
 boolean new_command = false;
 long debounce_time=0;
 int i;
+long debounce_period=1500;
 
 int input_states, current_input_states, last_input_states;
 
@@ -60,6 +61,11 @@ void loop() {
       if ((incoming_command[0]=='!') && (incoming_command[1]=='R')) {
         Serial.print('D');
         Serial.print((char)input_states);
+      } else if ((incoming_command[0]=='B')) { // debounce to be set to incoming_command[1] tenths on second
+        Serial.print('B');
+        Serial.print((char)incoming_command[1]);
+        debounce_period=incoming_command[1]*10;
+      
       } else {
         Serial.print('E');
         Serial.print('0');
@@ -68,10 +74,10 @@ void loop() {
     }
     if (input_states != current_input_states) {
       debounce_time=millis();
-      current_intput_states=input_states;
+      current_input_states=input_states;
     }
     
-    if ((millis()-debounce_time) > 1000) { 
+    if ((millis()-debounce_time) > debounce_period) { 
       if (current_input_states!=last_input_states) {
         last_input_states=current_input_states;
         Serial.print('D');
