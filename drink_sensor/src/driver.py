@@ -6,6 +6,11 @@ from drink_sensor.msg import DrinksStatus
 from drink_sensor.srv import *
 import serial
 
+# The actual caddy has some inputs tied low, others hight
+# mask  not xor with this
+MASK =  [True, True, True, False, False, False,  False,  False] 
+
+
 class DrinkSensor(object):
     def __init__(self):
         rospy.init_node('drink_sensor')
@@ -39,6 +44,7 @@ class DrinkSensor(object):
         state = DrinksStatus()
         for n in range(0,8):
             state.status.append((self.digital_state >> n) & 1)
+        state.status =  map(lambda x: not (x[0] ^ x[1]), zip(MASK,state.status)) 
         self._drinks_pub.publish(state)
 
 
@@ -50,6 +56,8 @@ class DrinkSensor(object):
         state = DrinksStatus()
         for n in range(0,8):
             state.status.append((self.digital_state >> n) & 1)
+        state.status =  map(lambda x: not (x[0] ^ x[1]), zip(MASK,state.status)) 
+
         resp = RequestDrinksStatusResponse(state)
         return resp
         
