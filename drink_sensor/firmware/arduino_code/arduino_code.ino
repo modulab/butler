@@ -20,14 +20,14 @@
 int incoming_command[2];
 int command_recv_pos=0;
 boolean new_command = false;
-
+long debounce_time=0;
 int i;
 
-int input_states, previous_input_states;
+int input_states, current_input_states, last_input_states;
 
 void setup() {
   Serial.begin(9600);
-  
+  debounce_time=millis();
   // Set inputs to have weak pull ups
   for (i=2; i<10; i++) {
     pinMode(i, INPUT);
@@ -50,7 +50,7 @@ void serialEvent() {
 
 
 void loop() {
-    previous_input_states = input_states;
+    
     // combine input ports parts into single byte
     input_states = ((PIND >> 2)) | ((PINB & B00000011) << 6);
     
@@ -66,9 +66,17 @@ void loop() {
       }
       new_command=false; 
     }
-    if (input_states != previous_input_states) {
+    if (input_states != current_input_states) {
+      debounce_time=millis();
+      current_intput_states=input_states;
+    }
+    
+    if ((millis()-debounce_time) > 1000) { 
+      if (current_input_states!=last_input_states) {
+        last_input_states=current_input_states;
         Serial.print('D');
-        Serial.print((char)input_states);
+        Serial.print((char)last_input_states);
+      }
     }
 }
 
