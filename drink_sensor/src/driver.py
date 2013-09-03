@@ -10,7 +10,7 @@ import serial
 # mask  not xor with this
 MASK =  [True, True, True, False, False, False,  False,  False] 
 
-
+ 
 class DrinkSensor(object):
     def __init__(self):
         rospy.init_node('drink_sensor')
