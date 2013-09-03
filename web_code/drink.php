@@ -79,7 +79,41 @@ exit;
 		?></h3>
 	</div>
 
+<?PHP
+// Check the number of orders already
+$lock = fopen("data/lock","w+");
+if (flock($lock, LOCK_EX)) {
 
+	//////////////////////////////
+	// Read the orders
+	$orders = file("data/orders.txt");
+	$beer_count=0;
+	foreach ($orders as $order) {
+		$entry = explode(" ", $order);
+		if ($entry[2] == "1beer") {
+		  $beer_count=$beer_count+1;
+		}
+		if ($entry[2] == "2beer") {
+		  $beer_count=$beer_count+2;
+		}
+		if ($entry[2] == "3beer") {
+		  $beer_count=$beer_count+3;
+		}
+	}
+	if ($beer_count>15) { 
+//        // assume average 5 beers per trip, don't want to queue too many, ~5min per trip
+		echo "<div class='alert'><strong>Warning!</strong> The current wait for a drink is approximately ";
+        echo $beer_count;
+        echo " minutes, so you may want to do something else and order later</div>";
+	}
+
+	flock($lock, LOCK_UN);	
+} else {
+	echo "Error 42.";	
+}
+fclose($lock);
+
+?>
 
 <form action="order.php" method="post">
 	<fieldset>
