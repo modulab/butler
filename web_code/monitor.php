@@ -114,12 +114,12 @@ if (flock($lock, LOCK_EX)) {
 
 	$eta = $position * $average;
 
-	echo "<p> Your are <b class=\"text-info\">position $position</b> in the queue:</p>";
+	echo "<h3> Your are <b class=\"text-info\">position $position</b> in the queue</h3>";
 	if ($is_active==1) {
-		echo "<p>I've picked your order, and am on my way :-)</p>";
+		echo "<h4>I've picked your order, and am on my way :-)</h4>";
 	}
-    echo "<p><table border=1>";
-    echo "<tr><th>Status</th><th>Name</th><th>How Many Beers</th><th>Drink Station</th><th>Order Number</th></tr>";
+    echo "<p><table class=\"table table-condensed\">";
+    echo "<tr><th>Status</th><th>Name</th><th>No. Beers</th><th>Drink Station</th><th>Order #</th></tr>";
     foreach ($orders as $order) {
         $is_active=0;
 
@@ -133,8 +133,10 @@ if (flock($lock, LOCK_EX)) {
 	    }
 
        if ($entry[0] == $order_no) {
-          echo "<tr class=\"you\"> ";
-	   } else {
+          echo "<tr class=\"error\"> ";
+	   } else if ($is_active==1) {
+           echo "<tr class=\"warning\">";
+       } else {
            echo "<tr>";
        }
        echo "<td>";
@@ -147,12 +149,20 @@ if (flock($lock, LOCK_EX)) {
        echo "</td>";
 
        echo "<td>";
-       echo $entry[2];
+       switch ($entry[2]){
+           case "1beer":
+                echo "1"; break;
+           case "2beer":
+                echo "2"; break;
+           case "3beer":
+                echo "3"; break;
+       }
        echo "</td>";
 
        echo "<td>";
        echo $entry[1];
        echo "</td>";
+
        echo "<td>";
        echo $entry[0];
        echo "</td>";
