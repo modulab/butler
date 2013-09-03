@@ -71,11 +71,10 @@ class App(object):
 class DrinksSensorDisplay(gtk.Frame):
     def __init__(self):
         gtk.Frame.__init__(self, "Drink Sensors")
-        self.drink_labels=[gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label(),
-                           gtk.Label(),gtk.Label(),gtk.Label(),gtk.Label()]
-        drinks_v=gtk.VBox(False,False)
-        drinks_top_row = gtk.HBox(False,False)
-        drinks_bottom_row = gtk.HBox(False,False)
+        self.drink_labels=[gtk.Label('??') for i in range(6)]
+        drinks_v=gtk.VBox(True,True)
+        drinks_top_row = gtk.HBox(True,True)
+        drinks_bottom_row = gtk.HBox(True,  True)
         drinks_v.pack_start(drinks_top_row)
         for i in range(0, 3):
             drinks_top_row.pack_start(self.drink_labels[i], False, False)
@@ -99,9 +98,9 @@ class DrinksSensorDisplay(gtk.Frame):
     def update_drinks_indicator(self, drinks):
         for status, label in zip(drinks, self.drink_labels):
             if status:
-                label.set_text("True")
+                label.set_markup('<span foreground="red" weight="bold">True</span>')
             else:
-                label.set_text("False")
+                label.set_markup('<span foreground="black">False</span>')
             
 
     def drinks_cb(self, msg):
