@@ -137,7 +137,7 @@ fclose($lock);
 <?php
 echo "<input type='hidden' name='station_id' value=$station>";
 ?>
-<label>Your name: (optional)</label>
+<label>Your name:</label>
 <input type="text" name="name">
 <label>How many beers? I can't carry more than 3...</label>
 
