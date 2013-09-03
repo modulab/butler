@@ -108,9 +108,11 @@ class SayOrders(smach.State):
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Arrived with orders, off-loading")
         # Say the names of the peoples orders
-        say =  "Order here for "
+        say =  "Hello! "
+        order_weights = {'1beer': "1 beer", '2beer': "Two beers", '3beer': "Three beers",}
+
         for order in application.app_data.order_list:
-            say = say + order.name + ", and "
+            say = say + order_weights[order.drinks] + " here for " +  order.name + ", and "
         say = say[:-6] # remove the last and
         application.app_data.talk_service(String(say))
         
