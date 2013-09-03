@@ -77,10 +77,10 @@ class DrinksSensorDisplay(gtk.Frame):
         drinks_top_row = gtk.HBox(False,False)
         drinks_bottom_row = gtk.HBox(False,False)
         drinks_v.pack_start(drinks_top_row)
-        for i in range(0,4):
+        for i in range(0, 3):
             drinks_top_row.pack_start(self.drink_labels[i], False, False)
         drinks_v.pack_start(drinks_bottom_row)
-        for i in range(4,8):
+        for i in range(3, 6):
             drinks_bottom_row.pack_start(self.drink_labels[i], False, False)
         self.add(drinks_v)
         
