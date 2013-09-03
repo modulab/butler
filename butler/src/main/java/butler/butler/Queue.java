@@ -8,6 +8,7 @@ import geometry_msgs.Quaternion;
 import geometry_msgs.Twist;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import move_base_msgs.MoveBaseActionGoal;
 import nav_msgs.Path;
@@ -141,20 +142,8 @@ public class Queue extends AbstractNodeMain {
 		stopSub.addMessageListener(new MessageListener<Bool>() {
 			@Override
 			public void onNewMessage(Bool update) {
-				feedback("Stopping...");
-				result(true);
 				if (update.getData()) {
-					synchronized (goalsLock) {
-						while (goals.size() > 0) {
-							try {
-								goals.remove(goals.size() - 1);
-							} catch (Exception e) {
-								feedback("Failed to remove goal from Queue");
-							}
-						}
-					}
-
-					cancelAllGoals();
+					stop(true);
 				}
 			}
 		});
@@ -176,74 +165,6 @@ public class Queue extends AbstractNodeMain {
 		statusSub.addMessageListener(new MessageListener<GoalStatusArray>() {
 			@Override
 			public void onNewMessage(GoalStatusArray update) {
-
-				if (goals.size() > 0
-						&& goals.get(0).getStatus() == QueueGoal.STOPPED_STATUS) {
-					executeGoal();
-				}
-
-				if (goals.size() > 0
-						&& update.getStatusList().size() > 0
-						&& update.getStatusList().get(0).getStatus() == GoalStatus.SUCCEEDED) {
-					recoveryNumber = 90;
-					recoveryLoop = 1;
-					if (goals
-							.get(0)
-							.getGoal()
-							.getGoalId()
-							.getId()
-							.equals(update.getStatusList().get(0).getGoalId()
-									.getId())) {
-						System.out.println(goals.get(0).getGoal().getGoalId()
-								.getId()
-								+ " "
-								+ update.getStatusList().get(0).getGoalId()
-										.getId());
-
-						if (goals.get(0).getType() != QueueGoal.RECOVERY_TYPE) {
-							recoveryAttempted = false;
-						}
-
-						if (goals.get(0).getType() == QueueGoal.QR_TYPE) {
-							result(true);
-						}
-						synchronized (goalsLock) {
-							goals.remove(0);
-						}
-					} else {
-						// TODO Deal with move_base...
-						System.out.println("Waiting for move_base... "
-								+ goals.get(0).getGoal().getGoalId().getId()
-								+ " "
-								+ update.getStatusList().get(0).getGoalId()
-										.getId());
-					}
-
-				}
-
-				if (goals.size() > 0
-						&& update.getStatusList().size() > 0
-						&& update.getStatusList().get(0).getStatus() == GoalStatus.ABORTED) {
-
-					if (goals
-							.get(0)
-							.getGoal()
-							.getGoalId()
-							.getId()
-							.equals(update.getStatusList().get(0).getGoalId()
-									.getId())) {
-						if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
-							synchronized (goalsLock) {
-								goals.remove(0);
-							}
-						}
-
-						if (recoveryNumber != 0) {
-							executeRecovery();
-						}
-					}
-				}
-
 				lastStatus = update;
 			}
 		});
@@ -267,14 +188,94 @@ public class Queue extends AbstractNodeMain {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
+		
+		while(true){
+			mainLoop();
+			sleep(100);
+		}
 
+	}
+	
+	private void mainLoop(){
+		if (goals.size() > 0
+				&& goals.get(0).getStatus() == QueueGoal.STOPPED_STATUS) {
+			executeGoal();
+		}
+
+		boolean succeeded = false;
+		List<GoalStatus> sl = lastStatus.getStatusList();
+
+		for (GoalStatus gs : sl) {
+			if (goals.size() > 0
+					&& sl.size() > 0
+					&& gs.getStatus() == GoalStatus.SUCCEEDED
+					&& goals.get(0).getGoal().getGoalId().getId()
+							.equals(gs.getGoalId().getId())) {
+				recoveryNumber = 90;
+				recoveryLoop = 1;
+				succeeded = true;
+
+				System.out.println(goals.get(0).getGoal().getGoalId()
+						.getId()
+						+ " " + gs.getGoalId().getId());
+
+				if (goals.get(0).getType() != QueueGoal.RECOVERY_TYPE) {
+					recoveryAttempted = false;
+				}
+
+				if (goals.get(0).getType() == QueueGoal.QR_TYPE) {
+					result(true);
+				}
+				synchronized (goalsLock) {
+					goals.remove(0);
+				}
+			}
+		}
+
+		if (!succeeded && goals.size() > 0
+				&& lastStatus.getStatusList().size() > 0&& lastStatus.getStatusList().get(0).getStatus() == GoalStatus.SUCCEEDED) {
+			System.out
+					.println("Waiting for move_base... "
+							+ goals.get(0).getGoal().getGoalId()
+									.getId()
+							+ " "
+							+ lastStatus.getStatusList().get(0).getGoalId()
+									.getId());
+		}
+
+		if (goals.size() > 0
+				&& lastStatus.getStatusList().size() > 0
+				&& lastStatus.getStatusList().get(0).getStatus() == GoalStatus.ABORTED) {
+
+			if (goals
+					.get(0)
+					.getGoal()
+					.getGoalId()
+					.getId()
+					.equals(lastStatus.getStatusList().get(0).getGoalId()
+							.getId())) {
+				if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
+					synchronized (goalsLock) {
+						goals.remove(0);
+					}
+				}
+
+				if (recoveryNumber != 0) {
+					executeRecovery();
+				}
+			}
+		}
 	}
 
 	private void cancelAllGoals() {
-		for (GoalStatus s : lastStatus.getStatusList()) {
-			GoalID newMsg = cancelPub.newMessage();
-			newMsg.setId(s.getGoalId().getId());
-			cancelPub.publish(newMsg);
+		if (lastStatus != null) {
+			for (GoalStatus s : lastStatus.getStatusList()) {
+				GoalID newMsg = cancelPub.newMessage();
+				newMsg.setId(s.getGoalId().getId());
+				cancelPub.publish(newMsg);
+			}
+		} else {
+			System.out.println("No move_base status messages received.");
 		}
 	}
 
@@ -292,6 +293,7 @@ public class Queue extends AbstractNodeMain {
 
 		} else {
 			feedback("Queue not empty. Discarding goal.");
+			result(false);
 		}
 
 		for (QueueGoal qg : goals) {
@@ -307,7 +309,7 @@ public class Queue extends AbstractNodeMain {
 	}
 
 	private void executeGoal() {
-		System.out.println("Publishing...");
+		feedback("Sending goal to move_base");
 		cancelAllGoals();
 		if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
 			setRecoveryBehaviour(false);
@@ -317,13 +319,63 @@ public class Queue extends AbstractNodeMain {
 
 		goalPub.publish(goals.get(0).getGoal());
 		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
+
+		// Check move_base doesn't ignore the goal
+
+		sleep(1000);
+
+		boolean succeeded = false;
+		for (int attempts = 0; attempts < 3; attempts++) {
+			try {
+				if (!checkMoveBaseForGoal(goals.get(0).getGoal().getGoalId()
+						.getId())) {
+					feedback("move_base has ignored the goal, checking again in 5 seconds...");
+					sleep(5000);
+				} else {
+					succeeded = true;
+					break;
+				}
+
+				if (!checkMoveBaseForGoal(goals.get(0).getGoal().getGoalId()
+						.getId())) {
+					feedback("move_base is still ignoring the goal, resending...");
+					goalPub.publish(goals.get(0).getGoal());
+
+					sleep(5000);
+				} else {
+					succeeded = true;
+					break;
+				}
+			} catch (Exception e) {
+				System.out.println("Exception: " + goals.size() + " "
+						+ lastStatus.getStatusList().size());
+			}
+		}
+
+		if (!succeeded) {
+			feedback("move_base won't respond. Giving up.");
+			stop(false);
+		}
+	}
+
+	private boolean checkMoveBaseForGoal(String id) {
+		List<GoalStatus> sl = lastStatus.getStatusList();
+		boolean found = false;
+		for (GoalStatus gs : sl) {
+			System.out.println("cmbfg: " + id + " " + gs.getGoalId().getId());
+			if (gs.getGoalId().getId().equals(id)) {
+				System.out.println("cmbfg true: " + id);
+				found = true;
+			}
+		}
+		return found;
 	}
 
 	private void executeRecovery() {
 
 		if (recoveryNumber == 90) {
 			makeRecoveryPlan();
-			feedback("Attempting recovery loop "+recoveryLoop+"...");
+			feedback("Attempting recovery loop " + recoveryLoop + "...");
 		}
 
 		System.out.println("Attempting recovery... " + recoveryNumber + "%");
@@ -411,9 +463,8 @@ public class Queue extends AbstractNodeMain {
 			if (recoveryNumber == 0) {
 				if (recoveryLoop == MAX_RECOVERY_LOOPS) {
 					feedback("Attempted " + MAX_RECOVERY_LOOPS
-							+ " recovery loops. Aborting...");
-					result(false);
-					cancelAllGoals();
+							+ " recovery loops. Aborting.");
+					stop(false);
 				} else {
 					recoveryNumber = 90;
 				}
@@ -554,5 +605,31 @@ public class Queue extends AbstractNodeMain {
 		Bool resultMsg = resultPub.newMessage();
 		resultMsg.setData(result);
 		resultPub.publish(resultMsg);
+	}
+
+	private boolean sleep(int n) {
+		try {
+			Thread.sleep(n);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			return false;
+		}
+		return true;
+	}
+
+	private void stop(boolean succeeded) {
+		feedback("Stopping...");
+		result(succeeded);
+		synchronized (goalsLock) {
+			while (goals.size() > 0) {
+				try {
+					goals.remove(goals.size() - 1);
+				} catch (Exception e) {
+					feedback("Failed to remove goal from Queue");
+				}
+			}
+		}
+
+		cancelAllGoals();
 	}
 }
