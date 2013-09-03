@@ -110,7 +110,8 @@ class SayOrders(smach.State):
         # Say the names of the peoples orders
         say =  "Order here for "
         for order in application.app_data.order_list:
-            say = say + order.name + " and "
+            say = say + order.name + ", and "
+        say = say[:-6] # remove the last and
         application.app_data.talk_service(String(say))
         
         # Wait until the drinks are all taken...timeout too
