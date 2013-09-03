@@ -45,6 +45,7 @@
       .marketing p + h4 {
         margin-top: 28px;
       }
+	  .you {background: #ffcccc}
     </style>
     <link href="./assets/css/bootstrap-responsive.css" rel="stylesheet">
 
@@ -117,6 +118,47 @@ if (flock($lock, LOCK_EX)) {
 	if ($is_active==1) {
 		echo "<p>I've picked your order, and am on my way :-)</p>";
 	}
+    echo "<p><table border=1>";
+    echo "<tr><th>Status</th><th>Name</th><th>How Many Beers</th><th>Drink Station</th><th>Order Number</th></tr>";
+    foreach ($orders as $order) {
+        $is_active=0;
+
+
+       $entry = explode(" ", $order,4);
+    	foreach ($actives as $active) {
+	    	if (intval($active) == intval($entry[0])) {
+		      $is_active = 1;
+		      break;
+	    	}
+	    }
+
+       if ($entry[0] == $order_no) {
+          echo "<tr class=\"you\"> ";
+	   } else {
+           echo "<tr>";
+       }
+       echo "<td>";
+       if ($is_active==1){
+           echo "<span class=\"badge badge-info\">On Route</span>";
+       }
+       echo "</td>";
+       echo "<td>";
+       echo $entry[3];
+       echo "</td>";
+
+       echo "<td>";
+       echo $entry[2];
+       echo "</td>";
+
+       echo "<td>";
+       echo $entry[1];
+       echo "</td>";
+       echo "<td>";
+       echo $entry[0];
+       echo "</td>";
+       echo "</tr>";
+    }
+    echo "</table>";
 	flock($lock, LOCK_UN);	
 } else {
 	echo "Error 42.";	
