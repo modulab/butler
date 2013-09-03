@@ -18,5 +18,6 @@
     <arg name="n" value="$(arg n)"/>
   </include>
   <include file="$(find butler)/launch/talker.launch" />
+  <include file="$(find drink_sensor)/launch/drink_sensor.launch" />
 
 </launch>

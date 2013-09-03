@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="drink_sensor" type="driver.py" name="drink_sensor" output="screen" />
+</launch>
