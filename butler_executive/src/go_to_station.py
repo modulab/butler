@@ -9,6 +9,7 @@ from drink_sensor.srv import *
 
 import sm_global_data as application
 from std_msgs.msg import String, Int32, Bool
+from sensor_msgs.msg import Joy
 
 """
 Low level state that navigates to a station
@@ -115,16 +116,32 @@ class JoystickModeMonitor(smach.State):
         smach.State.__init__(self,
                          outcomes    = ['succeeded', 'handback']
                          )
+        self.joy_sub =  rospy.Subscriber('/joy', Joy,  self.joy_cb)
+        self.should_succeed = False
+        self.should_handback = False
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Under joystick control..")
         # wait for button press to indicate return control
         # or succeded
+        self.should_succeed = False
+        self.should_handback = False
         while True:
             if self.preempt_requested():
                 self.service_preempt()
                 return 'succeeded'
+            if self.should_succeed:
+                return 'succeeded'
+            if self.should_handback:
+                return 'handback'
             rospy.sleep(0.1)
+            
+    def joy_cb(self, msg):
+        if msg.buttons[0] == 1:    # Button 'A' on Rumblepad 710
+            self.should_succeed = True
+        elif msg.buttons[2] ==  1:  # Button 'X' on Rumblepad 710
+            self.should_handback = True
+        
 
 """ State when in joystick control mode. Concurrently monitors some remote GUI buttons
 and the joystic buttons to decide when to leave.

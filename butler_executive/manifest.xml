@@ -17,6 +17,7 @@
   <depend package="butler"/>
   <depend package="talker"/>
   <depend package="web_connector"/>
+  <depend package="sensor_msgs"/>
 
 </package>
 
