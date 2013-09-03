@@ -113,7 +113,7 @@ if (flock($lock, LOCK_EX)) {
 
 	$eta = $position * $average;
 
-	echo "<p> Your are order <b class=\"text-info\">number $order_no</b>, estimated time to delivery <b class=\"text-error\">$eta seconds</b>. </p>";
+	echo "<p> Your are <b class=\"text-info\">position $position</b> in the queue:</p>";
 	if ($is_active==1) {
 		echo "<p>I've picked your order, and am on my way :-)</p>";
 	}
