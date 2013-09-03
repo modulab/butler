@@ -19,8 +19,14 @@ class DrinkSensor(object):
         self._serial = serial.Serial(serial_port)
 
         self._requested_digital = False
-        self._requested_digital_srv = rospy.Service("request_drinks_status",RequestDrinksStatus, self.request_digital)
+        self._requested_digital_srv = rospy.Service("request_drinks_status",
+                                                    RequestDrinksStatus,
+                                                    self.request_digital)
+        self._requested_digital_srv = rospy.Service("set_debounce",
+                                                    SetDebounce,
+                                                    self.set_debounce)
 
+        rospy.loginfo("Driver going into main loop")
         self.main()
 
     def main(self):
@@ -38,6 +44,10 @@ class DrinkSensor(object):
                     self.publish_state()
                 else:
                     self._requested_digital = False
+            elif status[0] == 'B':
+                # Debounce set confirmation
+                rospy.loginfo("Debounce set to " + str(ord(status[1])*10 )+"ms")
+
                         
     def publish_state(self):
         state = DrinksStatus()
@@ -59,6 +69,17 @@ class DrinkSensor(object):
 
         resp = RequestDrinksStatusResponse(state)
         return resp
+
+
+    def set_debounce(self, req):
+        val =  req.value.data # in milliseconds, need in 10th
+        val =  val / 10
+        if val > 255:
+            val = 255
+        if val < 0:
+            val = 0
+        self._serial.write("B"+chr(val))
+        return SetDebounceResponse()
         
 
 if __name__ == '__main__':
