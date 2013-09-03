@@ -24,10 +24,12 @@ The selected orders are then stored in the globabl application data singleton
 for use in other states.
 """
 class GetAndMarkOrders(smach.State):
-    def __init__(self):
+    def __init__(self, max_beers=6):
         smach.State.__init__(self,
             outcomes    = ['succeeded', 'no_orders']
         )
+        self.max_beers = max_beers
+        
         # create client for service
         try:
             rospy.wait_for_service("get_orders", 4)
@@ -62,7 +64,7 @@ class GetAndMarkOrders(smach.State):
             if order.station_id != service_station:
                 continue
             carrying += order_weights[order.drinks]
-            if carrying > MAX_LOAD:
+            if carrying > self.max_beers:
                 carrying -= order_weights[order.drinks]
                 break
             this_round.append(order)
@@ -108,7 +110,8 @@ class SayOrders(smach.State):
         # Say the names of the peoples orders
         say =  "Order here for "
         for order in application.app_data.order_list:
-            say = say + order.name + " and "
+            say = say + order.name + ", and "
+        say = say[:-6] # remove the last and
         application.app_data.talk_service(String(say))
         
         # Wait until the drinks are all taken...timeout too

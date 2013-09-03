@@ -9,6 +9,7 @@ from drink_sensor.srv import *
 
 import sm_global_data as application
 from std_msgs.msg import String, Int32, Bool
+from sensor_msgs.msg import Joy
 
 """
 Low level state that navigates to a station
@@ -21,43 +22,60 @@ class GoToStation(smach.State):
         self.going_to_base = to_base
         self.crowded_nav_go_pub =  rospy.Publisher("/crowded_nav/go", Int32)
         self.crowded_nav_stop_pub =  rospy.Publisher("/crowded_nav/stop", Bool)
+        
+        # Create a publisher for log status
+        self.status_pub = rospy.Publisher("/buttler_status_messages",  String)
+        
+        
         self.crowded_nav_result_sub =  rospy.Subscriber("/crowded_nav/result",
                                                         Bool,
                                                         self.result_cb)
         self.crowded_nav_feedback_sub =  rospy.Subscriber("/crowded_nav/feedback",
                                                         String,
                                                         self.feedback_cb)
+        
+        self._executing = False # should we ignore the callbacks - is the state in exec
 
 
     def execute(self,userdata):
         if not self.going_to_base:
             station_id =  int(application.app_data.order_list[0].station_id)
-            application.app_data.status_publisher.publish("Traveling to QR code ." + str(station_id))
+            self.status_pub.publish("Traveling to QR code ." + str(station_id))
         else:
-            application.app_data.status_publisher.publish("Returning to base.")
+            self.status_pub.publish("Returning to base.")
             station_id =  0
             
         self.status =  None
+        
+        
+        return_state = 'succeeded'
+        self._executing = True
         self.crowded_nav_go_pub.publish(station_id)
         while True:
             if self.preempt_requested():
                 self.service_preempt()
                 self.crowded_nav_stop_pub.publish(True)
-                return 'preempted'
+                #return_state = 'preempted'
+                break
             if self.status is not None:
                 if self.status:
-                    return 'succeeded'
+                    return_state = 'succeeded'
+                    break
                 else:
-                    application.app_data.status_publisher.publish("MOVE FAILED: try to joystick me.")
+                    self.status_pub.publish("MOVE FAILED: try to joystick me.")
+                    rospy.sleep(0.5)
             rospy.sleep(0.1)
 
-        return 'succeeded'
+        self._executing = False
+        return return_state
     
     def result_cb(self, msg):
         self.status = msg.data
     
     def feedback_cb(self, msg):
-        application.app_data.status_publisher.publish("[Crowded_Nav] "+msg.data)
+        if self._executing:
+            self.status_pub.publish("[Crowded_Nav] " + msg.data)
+        
     
 """
 Concurrent state that GoToStation, but is prempted by a joystick overtake request
@@ -115,16 +133,32 @@ class JoystickModeMonitor(smach.State):
         smach.State.__init__(self,
                          outcomes    = ['succeeded', 'handback']
                          )
+        self.joy_sub =  rospy.Subscriber('/joy', Joy,  self.joy_cb)
+        self.should_succeed = False
+        self.should_handback = False
 
     def execute(self,userdata):
         application.app_data.status_publisher.publish("Under joystick control..")
         # wait for button press to indicate return control
         # or succeded
+        self.should_succeed = False
+        self.should_handback = False
         while True:
             if self.preempt_requested():
                 self.service_preempt()
                 return 'succeeded'
+            if self.should_succeed:
+                return 'succeeded'
+            if self.should_handback:
+                return 'handback'
             rospy.sleep(0.1)
+            
+    def joy_cb(self, msg):
+        if msg.buttons[0] == 1:    # Button 'A' on Rumblepad 710
+            self.should_succeed = True
+        elif msg.buttons[2] ==  1:  # Button 'X' on Rumblepad 710
+            self.should_handback = True
+        
 
 """ State when in joystick control mode. Concurrently monitors some remote GUI buttons
 and the joystic buttons to decide when to leave.
