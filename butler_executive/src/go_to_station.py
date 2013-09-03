@@ -22,43 +22,60 @@ class GoToStation(smach.State):
         self.going_to_base = to_base
         self.crowded_nav_go_pub =  rospy.Publisher("/crowded_nav/go", Int32)
         self.crowded_nav_stop_pub =  rospy.Publisher("/crowded_nav/stop", Bool)
+        
+        # Create a publisher for log status
+        self.status_pub = rospy.Publisher("/buttler_status_messages",  String)
+        
+        
         self.crowded_nav_result_sub =  rospy.Subscriber("/crowded_nav/result",
                                                         Bool,
                                                         self.result_cb)
         self.crowded_nav_feedback_sub =  rospy.Subscriber("/crowded_nav/feedback",
                                                         String,
                                                         self.feedback_cb)
+        
+        self._executing = False # should we ignore the callbacks - is the state in exec
 
 
     def execute(self,userdata):
         if not self.going_to_base:
             station_id =  int(application.app_data.order_list[0].station_id)
-            application.app_data.status_publisher.publish("Traveling to QR code ." + str(station_id))
+            self.status_pub.publish("Traveling to QR code ." + str(station_id))
         else:
-            application.app_data.status_publisher.publish("Returning to base.")
+            self.status_pub.publish("Returning to base.")
             station_id =  0
             
         self.status =  None
+        
+        
+        return_state = 'succeeded'
+        self._executing = True
         self.crowded_nav_go_pub.publish(station_id)
         while True:
             if self.preempt_requested():
                 self.service_preempt()
                 self.crowded_nav_stop_pub.publish(True)
-                return 'preempted'
+                #return_state = 'preempted'
+                break
             if self.status is not None:
                 if self.status:
-                    return 'succeeded'
+                    return_state = 'succeeded'
+                    break
                 else:
-                    application.app_data.status_publisher.publish("MOVE FAILED: try to joystick me.")
+                    self.status_pub.publish("MOVE FAILED: try to joystick me.")
+                    rospy.sleep(0.5)
             rospy.sleep(0.1)
 
-        return 'succeeded'
+        self._executing = False
+        return return_state
     
     def result_cb(self, msg):
         self.status = msg.data
     
     def feedback_cb(self, msg):
-        application.app_data.status_publisher.publish("[Crowded_Nav] "+msg.data)
+        if self._executing:
+            self.status_pub.publish("[Crowded_Nav] " + msg.data)
+        
     
 """
 Concurrent state that GoToStation, but is prempted by a joystick overtake request
