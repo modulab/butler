@@ -61,6 +61,22 @@
                                    <link rel="shortcut icon" href="./assets/ico/favicon.png">
   </head>
 <body>
+<script>
+function validateForm()
+{
+var x=document.forms["orderform"]["name"].value;
+if (x==null || x=="")
+  {
+  alert("A name must be given");
+  return false;
+  }
+if (/[~`!#$_%\^&*+=\-\[\]\\';,/{}0123456789|\\":<>\?]/g.test(x)) {
+alert("Please give a name without special characters.");
+  return false;
+ 
+}
+}
+</script>
 <?PHP  
 $station=$_GET["station"];
 
@@ -115,7 +131,7 @@ fclose($lock);
 
 ?>
 
-<form action="order.php" method="post">
+<form action="order.php" method="post" name="orderform" onsubmit="return validateForm()" >
 	<fieldset>
 		<legend>Please place your order:</legend>
 <?php
