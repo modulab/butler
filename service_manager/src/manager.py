@@ -105,7 +105,9 @@ class DrinksSensorDisplay(gtk.Frame):
             
 
     def drinks_cb(self, msg):
+        gtk.threads_enter()
         self.update_drinks_indicator(msg.status)
+        gtk.threads_leave()
 
 class RobotStatusDisplay(gtk.Frame):
     def __init__(self):
@@ -131,16 +133,18 @@ class RobotStatusDisplay(gtk.Frame):
     def brake_cb(self, msg):
         if self.brakes_on == msg.data:
             return
+        gtk.threads_enter()
         self.brakes_on = msg.data
         if msg.data:
             self.brake_button.set_label("BRAKE ON")
         else:
             self.brake_button.set_label("BRAKE OFF")
-            
-        pass
+        gtk.threads_leave()    
 
     def battery_cb(self, msg):
+        gtk.threads_enter()
         self.battery_label.set_text("Battery voltage: %f"%msg.data)
+        gtk.threads_leave()
         
 class OrdersDisplay(gtk.Frame):
     def __init__(self):
@@ -248,7 +252,9 @@ class StatusMessageDisplay(gtk.Frame):
             self.textbox.scroll_to_iter(ti, 0.1)
             
     def status_cb(self, msg):
+        gtk.threads_enter()
         self.add_message(msg.data)
+        gtk.threads_leave()
 #
 # Buttons that connect to ROS
 class RemoteEnabledDisabledButton(gtk.Button):
@@ -259,7 +265,9 @@ class RemoteEnabledDisabledButton(gtk.Button):
                                                      self._disable_cb)
         
     def _disable_cb(self, msg):
+        gtk.threads_enter()
         self.set_sensitive(msg.data)
+        gtk.threads_leave()
             
 class BooleanPublishButton(RemoteEnabledDisabledButton):
     def __init__(self, text, button_topic, enabled=True):
