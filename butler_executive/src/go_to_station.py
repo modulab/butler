@@ -10,6 +10,7 @@ from drink_sensor.srv import *
 import sm_global_data as application
 from std_msgs.msg import String, Int32, Bool
 from sensor_msgs.msg import Joy
+from time import time
 
 """
 Low level state that navigates to a station
@@ -219,10 +220,10 @@ class JoystickOverideableGoToStation(smach.StateMachine):
         
 """
 Low level state that says "Return drinks" and waits until drink sensor
-has the correct number of drinks. Times out.
+has the correct number of drinks. Times out after 'timeout' seconds, default 15.
 """
 class AskBottleBack(smach.State):
-    def __init__(self):
+    def __init__(self, timeout=15):
         smach.State.__init__(self,
                              outcomes    = ['bottle_back', 'timeout']
                              )
@@ -234,6 +235,8 @@ class AskBottleBack(smach.State):
             rospy.logerr("Can't find drink sensor services!")
             sys.exit(1)
             
+        self.timeout = timeout
+            
         self.request_drinks_status = rospy.ServiceProxy("request_drinks_status",
                                                         RequestDrinksStatus)
         
@@ -243,7 +246,10 @@ class AskBottleBack(smach.State):
         application.app_data.talk_service(String("Please return that drink!"))
 
         # 
-        for i in range(200): # 20 seconds timeout
+        timed_out = False
+        start_time = time()
+        while not timed_out:
+#        for i in range(int(self.timeout*10)):
             if self.preempt_requested():
                 self.service_preempt()
                 return 'timeout'
@@ -255,6 +261,9 @@ class AskBottleBack(smach.State):
                 application.app_data.status_publisher.publish("Got it back!")
                 return 'bottle_back'
             rospy.sleep(0.1)
+            
+            if (time() - start_time) >  self.timeout:
+                timed_out = True
                 
         
         # should adjust the current orders to only contain the ones
