@@ -116,7 +116,7 @@ if (flock($lock, LOCK_EX)) {
 
 	echo "<h3> Your are <b class=\"text-info\">position $position</b> in the queue</h3>";
 	if ($is_active==1) {
-		echo "<h4>I've picked your order, and am on my way :-)</h4>";
+		echo "<h4>I've picked your order up, and am on my way :-)</h4>";
 	}
     echo "<p><table class=\"table table-condensed\">";
     echo "<tr><th>Status</th><th>Name</th><th>No. Beers</th><th>Drink Station</th><th>Order #</th></tr>";
