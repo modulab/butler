@@ -5,6 +5,7 @@ from std_msgs.msg import String
 from drink_sensor.msg import DrinksStatus
 from drink_sensor.srv import *
 import serial
+import sys
 
 # The actual caddy has some inputs tied low, others hight
 # mask  not xor with this
@@ -17,6 +18,11 @@ class DrinkSensor(object):
 
         serial_port = rospy.get_param("serial_port","/dev/ttyACM0")
         self._serial = serial.Serial(serial_port)
+        status = self._serial.read(2) # read the initial values
+        if status != "!G": # init string
+            rospy.logerr("Error initialising drink sensor.")
+            rospy.logerr("Got message "+status)
+            sys.exit(1)
 
         self._requested_digital = False
         self._requested_digital_srv = rospy.Service("request_drinks_status",
@@ -26,6 +32,10 @@ class DrinkSensor(object):
                                                     SetDebounce,
                                                     self.set_debounce)
 
+        rospy.loginfo("Setting default debounce period 800ms")
+        #rospy.sleep(1)
+        self._serial.write("B"+chr(80))
+        
         rospy.loginfo("Driver going into main loop")
         self.main()
 

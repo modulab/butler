@@ -28,6 +28,7 @@ int input_states, current_input_states, last_input_states;
 
 void setup() {
   Serial.begin(9600);
+  Serial.print("!G");
   debounce_time=millis();
   // Set inputs to have weak pull ups
   for (i=2; i<10; i++) {
