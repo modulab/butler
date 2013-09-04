@@ -134,6 +134,8 @@ class SayOrders(smach.State):
                                                         RequestDrinksStatus)
 
     def execute(self,userdata):
+        initial = self.request_drinks_status().status.status
+        initial =  sum([1 for x in initial if x])
         application.app_data.status_publisher.publish("Arrived with orders, off-loading")
         # Say the names of the peoples orders
         say =  "Hello! "
@@ -150,7 +152,7 @@ class SayOrders(smach.State):
             status =  response.status.status
             # check the number of drinks
             n_drinks = sum([1 for x in status if x ])
-            if n_drinks == 0:
+            if (initial - n_drinks) == application.app_data.n_drinks:
                 application.app_data.talk_service(String("See you later."))
                 return 'empty_tray'
             rospy.sleep(0.1)
