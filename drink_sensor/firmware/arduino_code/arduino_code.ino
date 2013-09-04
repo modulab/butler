@@ -23,12 +23,31 @@ boolean new_command = false;
 long debounce_time=0;
 int i;
 long debounce_period=1500;
-
+boolean initialised=false;
+int init_seq=0;
 int input_states, current_input_states, last_input_states;
 
 void setup() {
   Serial.begin(9600);
+  
   Serial.print("!G");
+  while (!initialised) {
+    //
+    while (!Serial.available());
+    incoming_command[0]=Serial.read();
+  //  Serial.print(incoming_command[0]);
+    if (incoming_command[0]=='!') {
+      init_seq = 1;
+    } else if ((incoming_command[0]=='G') && (init_seq==1) ) {
+      init_seq = 2;
+      initialised=true;
+    } else {
+      init_seq=0;
+    }
+  }
+  
+  Serial.print("!G");
+  
   debounce_time=millis();
   // Set inputs to have weak pull ups
   for (i=2; i<10; i++) {

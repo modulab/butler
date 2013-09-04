@@ -20,6 +20,17 @@ class DrinkSensor(object):
 
         serial_port = rospy.get_param("serial_port","/dev/ttyACM0")
         self._serial = serial.Serial(serial_port)
+        rospy.loginfo("Waiting for serial port")
+        while not self._serial.isOpen():
+            pass        
+        rospy.loginfo("Opened serial "+ serial_port)
+        status = self._serial.read(2) # read the initial values
+        if status != "!G": # init string
+            rospy.logerr("Error initialising drink sensor.")
+            rospy.logerr("Got message "+status)
+            sys.exit(1)
+        
+        self._serial.write("!G")
         status = self._serial.read(2) # read the initial values
         if status != "!G": # init string
             rospy.logerr("Error initialising drink sensor.")
