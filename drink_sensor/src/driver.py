@@ -9,7 +9,9 @@ import sys
 
 # The actual caddy has some inputs tied low, others hight
 # mask  not xor with this
-MASK =  [True, True, True, False, False, False,  False,  False] 
+MASK =  [True, True, True, False, False, False,  False,  False]
+# They are also wired in a strange order, re order as
+REORDER = [3, 4, 5, 1, 2, 0]
 
 class DrinkSensor(object):
     def __init__(self):
@@ -63,7 +65,9 @@ class DrinkSensor(object):
         state = DrinksStatus()
         for n in range(0,8):
             state.status.append((self.digital_state >> n) & 1)
-        state.status =  map(lambda x: not (x[0] ^ x[1]), zip(MASK,state.status)) 
+        state.status =  map(lambda x: not (x[0] ^ x[1]), zip(MASK,state.status))
+        reorder =  map(lambda x: state.status[x],  REORDER)
+        state.status = reorder
         self._drinks_pub.publish(state)
 
 
@@ -76,6 +80,7 @@ class DrinkSensor(object):
         for n in range(0,8):
             state.status.append((self.digital_state >> n) & 1)
         state.status =  map(lambda x: not (x[0] ^ x[1]), zip(MASK,state.status)) 
+        state.status =  map(lambda x: state.status[x],  REORDER)
 
         resp = RequestDrinksStatusResponse(state)
         return resp
