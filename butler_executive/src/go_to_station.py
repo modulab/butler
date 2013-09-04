@@ -12,6 +12,9 @@ from std_msgs.msg import String, Int32, Bool
 from sensor_msgs.msg import Joy
 from time import time
 
+from order_states import GetAndMarkOrders
+
+
 """
 Low level state that navigates to a station
 """
@@ -311,18 +314,24 @@ Outcome -> arrived_to_station
 """
 class StealAwareGoToStation(smach.StateMachine):
     def __init__(self):
-        smach.StateMachine.__init__(self, outcomes=['arrived_to_station'])
+        smach.StateMachine.__init__(self, outcomes=['arrived_to_station',
+                                                    'cancelled'])
         
         with self:
             smach.StateMachine.add('ASK_BOTTLE_BACK', AskBottleBack(),
                                    transitions={'bottle_back':'MONITORED_GO_TO_STATION',
-                                                'timeout':'MONITORED_GO_TO_STATION'})
+                                                'timeout':'GET_AND_MARK_ORDERS'})
         
             monitored_go_to_station = BottleMonitoredGoToStation()
         
             smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,
                                    transitions={'stolen_bottle':'ASK_BOTTLE_BACK',
                                                 'arrived_to_station':'arrived_to_station'})
+            
+            smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(already_carrying=True),
+                               transitions={'succeeded':'MONITORED_GO_TO_STATION',
+                                            'no_orders': 'cancelled',
+                                            'not_enough_beers': 'cancelled',}) 
         
         self.set_initial_state(["MONITORED_GO_TO_STATION"])
         
@@ -347,7 +356,10 @@ class CancelableGoToStation(smach.Concurrence):
     def child_term_cb_cancel(self, outcome_map):
          # decide if this state is done when one or more concurrent inner states 
         # stop
-        if outcome_map['CANCEL_MONITOR'] == 'invalid' or outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid' or outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
+        if (outcome_map['CANCEL_MONITOR'] == 'invalid' or
+            outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid' or
+            outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station' or
+            outcome_map['STEAL_AWARE_GO_TO_STATION']=='cancelled'):
             return True
         return False
     
@@ -359,6 +371,8 @@ class CancelableGoToStation(smach.Concurrence):
             return "forced_completion"
         if  outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
             return "arrived_to_station"        
+        if  outcome_map['STEAL_AWARE_GO_TO_STATION']=='cancelled':
+            return "cancelled"        
 
 
     
