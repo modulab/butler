@@ -147,6 +147,7 @@ $average = $total / $number;
   echo "<tr><th>Status</th><th>Name</th><th>No. Beers</th><th>Drink Station</th><th>Order #</th></tr>";
   foreach ($orders as $order) {
 	$is_active=0;
+	$is_delayed=0;
 
 
 	$entry = explode(" ", $order,4);
