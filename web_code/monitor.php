@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Autonomous Drinks Administering Machine">
     <meta name="author" content="School of Computer Science, University of Birmingham">
-
+    <meta http-equiv="refresh" content="15" >
     <!-- Le styles -->
     <link href="./assets/css/bootstrap.css" rel="stylesheet">
     <style type="text/css">
