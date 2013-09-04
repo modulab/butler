@@ -137,15 +137,19 @@ fclose($lock);
 <?php
 echo "<input type='hidden' name='station_id' value=$station>";
 ?>
-<label>Your name:</label>
-<input type="text" name="name">
 <label>How many beers? I can't carry more than 3...</label>
 
 <select name="drinks">
 <option value="1beer"selected>1</option>
 <option value="2beer">2</option>
 <option value="3beer" >3</option>
-</select><br>
+</select>
+
+
+
+<label>Your name:</label>
+<input type="text" name="name">
+
 
 <button type="submit" class="btn btn-primary">Order</button>
 </fieldset>
