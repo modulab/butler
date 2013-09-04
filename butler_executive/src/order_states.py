@@ -88,8 +88,7 @@ class GetAndMarkOrders(smach.State):
                 break
             this_round.append(order)
 
-        if carrying == 0:  # if nothing could be loaded, not enough beers
-            return 'not_enough_beers' 
+        #
         
         # mark the orders as active
         req =  MarkActiveOrdersRequest()
@@ -108,6 +107,9 @@ class GetAndMarkOrders(smach.State):
         else:
             application.app_data.status_publisher.publish("Adapted delivery for lost beer.")
             
+        if carrying == 0:  # if nothing could be loaded, not enough beers
+            return 'not_enough_beers'
+        
         return 'succeeded'        
 
 """

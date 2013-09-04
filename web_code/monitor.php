@@ -115,6 +115,20 @@ $average = $total / $number;
 	}
   }
   /////////////////////////////
+  
+  /////////////////////////////
+  // find out what orders are active
+  $been_actives = file("data/been_active.txt");
+  $is_delayed=0;
+  foreach ($actives as $active) {
+	if (intval($active) == intval($order_no)) {
+	  $is_delayed = 1;
+	  break;
+	}
+  }
+  
+  /////////////////////////////
+  
   /*
 	$eta = $position * $average;
   */
@@ -125,6 +139,8 @@ $average = $total / $number;
 	echo "<h3> Your are <b class=\"text-info\">position $position</b> in the queue</h3>";
 	if ($is_active==1) {
 	  echo "<h4>I've picked your order up, and am on my way :-)</h4>";
+	} else if ($is_delayed==1) {
+	  echo "<h4>Your order has been delayed, but don't worry I won't forget you :-)</h4>";
 	}
   }
   echo "<p><table class=\"table table-condensed\">";
@@ -140,6 +156,12 @@ $average = $total / $number;
 		break;
 	  }
 	}
+	foreach ($been_actives as $active) {
+	  if (intval($active) == intval($entry[0])) {
+		$is_delayed = 1;
+		break;
+	  }
+	}
 
 	if ($entry[0] == $order_no) {
 	  echo "<tr class=\"error\"> ";
@@ -151,6 +173,8 @@ $average = $total / $number;
 	echo "<td>";
 	if ($is_active==1){
 	  echo "<span class=\"badge badge-info\">On Route</span>";
+	} else if ($is_delayed==1){
+	  echo "<span class=\"badge badge-warning\">Delayed</span>";
 	}
 	echo "</td>";
 	echo "<td>";
