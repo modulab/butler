@@ -83,6 +83,41 @@ class GetAndMarkOrders(smach.State):
         application.app_data.status_publisher.publish("Load " + str(carrying) +" beers and press go!")        
         return 'succeeded'        
 
+"""
+State that checks that the operator loaded enough beer.
+"""
+class CheckCorrectLoading(smach.State):
+    def __init__(self, max_beers=6):
+        smach.State.__init__(self,
+            outcomes    = ['succeeded', 'failed']
+        )
+
+        # service to query drinks status
+        try:
+            rospy.wait_for_service("request_drinks_status", 4)
+        except:
+            rospy.logerr("Can't find drink sensor services!")
+            sys.exit(1)
+            
+        self.request_drinks_status = rospy.ServiceProxy("request_drinks_status",
+                                                        RequestDrinksStatus)
+        
+
+    def execute(self,userdata):
+        application.app_data.status_publisher.publish("Checking correct loading.")
+        #execute service
+        resp = self.request_drinks_status()
+        drinks = resp.status.status
+        have =  sum(1 for x in drinks if x)
+        application.app_data.status_publisher.publish(" need " +
+                                                      str(application.app_data.n_drinks) +
+                                                      ",  have " + str(have))
+        
+        if (application.app_data.n_drinks != have):
+            application.app_data.status_publisher.publish("Check loading and press go.")
+            return 'failed'
+        else:
+            return "succeeded"
 
 """
 Say orders is entered when the robot gets to a drink station to offload drinks.
@@ -186,9 +221,12 @@ def main():
                                transitions={'succeeded':'WAIT_FOR_GO',
                                             'no_orders': 'GET_AND_MARK_ORDERS',})
         smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go'),
-                               transitions={'invalid':'CANCELABLE_GO_TO_STATION',
+                               transitions={'invalid':'CHECK_LOADING',
                                             'valid':'WAIT_FOR_GO',
                                             'preempted':'WAIT_FOR_GO'})
+        smach.StateMachine.add('CHECK_LOADING', CheckCorrectLoading(),
+                               transitions={'failed':'WAIT_FOR_GO',
+                                            'succeeded':'CANCELABLE_GO_TO_STATION'})
         smach.StateMachine.add('CANCELABLE_GO_TO_STATION', CancelableGoToStation(),
                                transitions={'arrived_to_station':'SAY_ORDERS',
                                             'forced_completion':'SAY_ORDERS',
