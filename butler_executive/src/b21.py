@@ -7,7 +7,7 @@ import sys
 import smach
 import smach_ros
 
-from monitor_states import BooleanMonitor, ButtonMonitor #go_button_monitor
+from monitor_states import BooleanMonitor, ButtonMonitor, JoystickAndButtonMonitor
 from go_to_station import CancelableGoToStation, JoystickOverideableGoToStation
 from order_states import * 
 
@@ -81,7 +81,9 @@ def main():
                                transitions={'succeeded':'WAIT_FOR_GO',
                                             'no_orders': 'GET_AND_MARK_ORDERS',
                                             'not_enough_beers': 'GET_AND_MARK_ORDERS',}) 
-        smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go'),
+        #smach.StateMachine.add('WAIT_FOR_GO', ButtonMonitor('/remote_buttons/go'),
+        smach.StateMachine.add('WAIT_FOR_GO', JoystickAndButtonMonitor(button_topic='/remote_buttons/go',
+                                                                       joystick_button=7),
                                transitions={'invalid':'CHECK_LOADING',
                                             'valid':'WAIT_FOR_GO',
                                             'preempted':'WAIT_FOR_GO'})

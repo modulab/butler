@@ -95,7 +95,8 @@ class JoystickMonitoredGotoStation(smach.Concurrence):
         with self:
             smach.Concurrence.add('GO_TO_STATION', GoToStation(to_base))
             smach.Concurrence.add('JOYSTICK_TAKEOVER_MONITOR',
-                                  ButtonMonitor("/remote_buttons/joystick"))
+                                  JoystickAndButtonMonitor("/remote_buttons/joystick",
+                                                           joystick_button=5))
 
     def child_term_cb_stolen(self, outcome_map):
         # decide if this state is done when one or more concurrent inner states 
