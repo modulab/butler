@@ -7,7 +7,9 @@ from smach_ros import *
 from std_msgs.msg import Bool
 from drink_sensor.msg import DrinksStatus
 
-from sm_global_data import GlobalData
+#from sm_global_data import GlobalData
+import sm_global_data as application
+
 
 """
 A generic smach state that monitors a std_msgs/Bool topic, and exits with outcome
@@ -37,8 +39,13 @@ class StolenBottleMonitor(smach_ros.MonitorState):
         # If anything gets published here, it means something changed on the
         # tray so no need to check what...
         # Return False means 'invalid' outcome of state
-        application.app_data.status_publisher.publish("Bottle stolen!")
-        return False
+        # Check that we still have enough drinks to fullfill order
+        required =  application.app_data.n_drinks
+        if sum([1 for x in msg.status if x]) <  required:
+            application.app_data.status_publisher.publish("Bottle stolen!")
+            return False
+        else:
+            return True
     
 
 """
