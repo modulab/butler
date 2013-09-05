@@ -137,7 +137,7 @@ fclose($lock);
 <?php
 echo "<input type='hidden' name='station_id' value=$station>";
 ?>
-<label>How many beers? I can't carry more than 3...</label>
+<label>How many beers?</label>
 
 <select name="drinks">
 <option value="1beer"selected>1</option>

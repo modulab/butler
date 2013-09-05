@@ -26,6 +26,23 @@ if (flock($lock, LOCK_EX)) {
 
 	fclose($file);
 	/////////////////////////////////////
+	
+	/////////////////////////////
+	// Write the active orders to file
+
+	// Open orders file
+	if (!$file = fopen("data/been_active.txt", 'a')) { 
+	  print "Oh No! Err Code=1"; 
+	  exit; 
+	} 
+
+	$orders=explode(".",$active_orders);
+	foreach ($orders as $order) {
+	  fwrite($file, $order."\n");
+	}
+
+	fclose($file);
+	/////////////////////////////////////
 	flock($lock, LOCK_UN);	
 } else {
 	echo "Error 42.";

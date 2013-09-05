@@ -6,6 +6,7 @@ from smach import *
 from smach_ros import *
 from std_msgs.msg import Bool
 from drink_sensor.msg import DrinksStatus
+from sensor_msgs.msg import Joy
 
 #from sm_global_data import GlobalData
 import sm_global_data as application
@@ -66,4 +67,50 @@ class ButtonMonitor(BooleanMonitor):
 
         
     
+"""
+Monitor state that checks given joystick button
+"""
+class JoystickButtonMonitor(smach_ros.MonitorState):
+    def __init__(self, button):
+        self.button = button
+        smach_ros.MonitorState.__init__(self, "/joy",
+                                        Joy,
+                                        self._callback)
     
+    def _callback(self,  ud,  msg):
+        if msg.buttons[self.button] == 1:
+            return False
+        else:
+            return True
+    
+"""
+A parallel monitor for a GUI button or a joystick button
+"""
+class JoystickAndButtonMonitor(smach.Concurrence):
+    def __init__(self, button_topic, joystick_button):
+        smach.Concurrence.__init__(self, outcomes=['invalid',
+                                                   'valid',
+                                                   'preempted'],
+                                   default_outcome='valid',
+                                   child_termination_cb=self.child_term_cb,
+                                   outcome_cb = self.out_cb,
+                                   )
+        with self:
+            smach.Concurrence.add('BUTTON_MONITOR', ButtonMonitor(button_topic))
+            smach.Concurrence.add('JOYSTICK_MONITOR',JoystickButtonMonitor(joystick_button))
+        
+    def child_term_cb(self, outcome_map):
+        # decide if this state is done when one or more concurrent inner states 
+        # stop
+        if (outcome_map['BUTTON_MONITOR'] == 'invalid'
+            or outcome_map["JOYSTICK_MONITOR"]=="invalid"):
+            return True
+        return False
+    
+    def out_cb(self, outcome_map):
+        # determine what the outcome of this machine is
+        if outcome_map['BUTTON_MONITOR'] == 'invalid':
+            return 'invalid'
+        if  outcome_map["JOYSTICK_MONITOR"]=="invalid":
+            return "invalid"
+        return 'preempted' # must have been, or it would still be going.

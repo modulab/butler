@@ -8,9 +8,12 @@ from monitor_states import *
 from drink_sensor.srv import * 
 
 import sm_global_data as application
-from std_msgs.msg import String, Int32, Bool
+from std_msgs.msg import String, Int32, Bool, Float32
 from sensor_msgs.msg import Joy
 from time import time
+
+from order_states import GetAndMarkOrders
+
 
 """
 Low level state that navigates to a station
@@ -92,7 +95,8 @@ class JoystickMonitoredGotoStation(smach.Concurrence):
         with self:
             smach.Concurrence.add('GO_TO_STATION', GoToStation(to_base))
             smach.Concurrence.add('JOYSTICK_TAKEOVER_MONITOR',
-                                  ButtonMonitor("/remote_buttons/joystick"))
+                                  JoystickAndButtonMonitor("/remote_buttons/joystick",
+                                                           joystick_button=5))
 
     def child_term_cb_stolen(self, outcome_map):
         # decide if this state is done when one or more concurrent inner states 
@@ -289,6 +293,13 @@ class BottleMonitoredGoToStation(smach.Concurrence):
         with self:
             smach.Concurrence.add('GO_TO_STATION', JoystickOverideableGoToStation())
             smach.Concurrence.add('STOLEN_BOTTLE_MONITOR',StolenBottleMonitor())
+        
+        # subscribe to crowded navigation distance to maintain knowledge of
+        # goal distance
+        self.distance_to_goal =  1000.0
+        self.goal_distance_sub =  rospy.Subscriber('/crowded_nav/distance',
+                                                   Float32,
+                                                   self.goal_distance_cb)
 
     def child_term_cb_stolen(self, outcome_map):
         # decide if this state is done when one or more concurrent inner states 
@@ -300,10 +311,18 @@ class BottleMonitoredGoToStation(smach.Concurrence):
     def out_cb_stolen(self, outcome_map):
         # determine what the outcome of this machine is
         if outcome_map['STOLEN_BOTTLE_MONITOR'] == 'invalid':
-            return 'stolen_bottle'
+            # if a bottle was stolen, but we are close to the station,
+            # then go to 'arived' and proceed as normal; otherwise request return
+            # threading issues?
+            if self.distance_to_goal <  0.5:
+                return 'arrived_to_station'
+            else:
+                return 'stolen_bottle'
         if  outcome_map["GO_TO_STATION"]=="succeeded":
             return "arrived_to_station"
 
+    def goal_distance_cb(self, msg):
+        self.distance_to_goal = msg.data
 
 """
 Steal aware navigation to station. BottleMonitoredGoToStation <-> AskBottleBack
@@ -311,18 +330,24 @@ Outcome -> arrived_to_station
 """
 class StealAwareGoToStation(smach.StateMachine):
     def __init__(self):
-        smach.StateMachine.__init__(self, outcomes=['arrived_to_station'])
+        smach.StateMachine.__init__(self, outcomes=['arrived_to_station',
+                                                    'cancelled'])
         
         with self:
             smach.StateMachine.add('ASK_BOTTLE_BACK', AskBottleBack(),
                                    transitions={'bottle_back':'MONITORED_GO_TO_STATION',
-                                                'timeout':'MONITORED_GO_TO_STATION'})
+                                                'timeout':'GET_AND_MARK_ORDERS'})
         
             monitored_go_to_station = BottleMonitoredGoToStation()
         
             smach.StateMachine.add('MONITORED_GO_TO_STATION', monitored_go_to_station,
                                    transitions={'stolen_bottle':'ASK_BOTTLE_BACK',
                                                 'arrived_to_station':'arrived_to_station'})
+            
+            smach.StateMachine.add('GET_AND_MARK_ORDERS', GetAndMarkOrders(already_carrying=True),
+                               transitions={'succeeded':'MONITORED_GO_TO_STATION',
+                                            'no_orders': 'cancelled',
+                                            'not_enough_beers': 'cancelled',}) 
         
         self.set_initial_state(["MONITORED_GO_TO_STATION"])
         
@@ -347,7 +372,10 @@ class CancelableGoToStation(smach.Concurrence):
     def child_term_cb_cancel(self, outcome_map):
          # decide if this state is done when one or more concurrent inner states 
         # stop
-        if outcome_map['CANCEL_MONITOR'] == 'invalid' or outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid' or outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
+        if (outcome_map['CANCEL_MONITOR'] == 'invalid' or
+            outcome_map['FORCE_COMPLETION_MONITOR'] == 'invalid' or
+            outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station' or
+            outcome_map['STEAL_AWARE_GO_TO_STATION']=='cancelled'):
             return True
         return False
     
@@ -359,6 +387,8 @@ class CancelableGoToStation(smach.Concurrence):
             return "forced_completion"
         if  outcome_map['STEAL_AWARE_GO_TO_STATION']=='arrived_to_station':
             return "arrived_to_station"        
+        if  outcome_map['STEAL_AWARE_GO_TO_STATION']=='cancelled':
+            return "cancelled"        
 
 
     
