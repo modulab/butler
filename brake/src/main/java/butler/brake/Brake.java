@@ -20,15 +20,17 @@ import actionlib_msgs.GoalStatusArray;
 
 public class Brake extends AbstractNodeMain {
 
-	private long lastLaser, lastPTU, lastKinect, lastMoveBase, lastOdom, lastVel, brakesLastApplied, lastXtion;
-	private PointCloud lastBump = null;
-	private final long LASER_FAILURE_THRESHOLD = 500000000, PTU_FAILURE_THRESHOLD = 500000000, KINECT_FAILURE_THRESHOLD = 1000000000,
-			XTION_FAILURE_THRESHOLD = 1000000000, MOVE_BASE_FAILURE_THRESHOLD = 500000000, VEL_FAILURE_THRESHOLD = 1500000000,
-			ODOM_FAILURE_THRESHOLD = 500000000, BRAKE_THRESHOLD = 5000000000l;
+	private long lastLaser, lastKinect, lastMoveBase, lastVel,
+			brakesLastApplied, lastXtion;
+	private final long LASER_FAILURE_THRESHOLD = 500000000,
+			KINECT_FAILURE_THRESHOLD = 1000000000,
+			XTION_FAILURE_THRESHOLD = 1000000000,
+			MOVE_BASE_FAILURE_THRESHOLD = 500000000,
+			VEL_FAILURE_THRESHOLD = 1500000000, BRAKE_THRESHOLD = 5000000000l;
 	private Publisher<Bool> brakePub;
 	private Publisher<Twist> velPub;
+	private Publisher<std_msgs.String> feedbackPub;
 	private Odometry lastOdomMsg = null;
-	private Log log;
 
 	@Override
 	public GraphName getDefaultNodeName() {
@@ -37,13 +39,13 @@ public class Brake extends AbstractNodeMain {
 
 	@Override
 	public void onStart(ConnectedNode node) {
-		log = node.getLog();
-
 		brakePub = node.newPublisher("b21/cmd_brake_power", Bool._TYPE);
-
 		velPub = node.newPublisher("b21/cmd_vel", Twist._TYPE);
+		feedbackPub = node.newPublisher("butler_status_messages",
+				std_msgs.String._TYPE);
 
-		Subscriber<LaserScan> laserSub = node.newSubscriber("scan", LaserScan._TYPE);
+		Subscriber<LaserScan> laserSub = node.newSubscriber("scan",
+				LaserScan._TYPE);
 
 		laserSub.addMessageListener(new MessageListener<LaserScan>() {
 			@Override
@@ -52,25 +54,8 @@ public class Brake extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<PointCloud> bumpSub = node.newSubscriber("b21/bump", PointCloud._TYPE);
-
-		bumpSub.addMessageListener(new MessageListener<PointCloud>() {
-			@Override
-			public void onNewMessage(PointCloud update) {
-				lastBump = update;
-			}
-		});
-
-		Subscriber<JointState> ptuSub = node.newSubscriber("ptu/state", JointState._TYPE);
-
-		ptuSub.addMessageListener(new MessageListener<JointState>() {
-			@Override
-			public void onNewMessage(JointState update) {
-				lastPTU = System.nanoTime();
-			}
-		});
-
-		Subscriber<PointCloud2> kinectSub = node.newSubscriber("voxel_grid_kinect/output", PointCloud2._TYPE);
+		Subscriber<PointCloud2> kinectSub = node.newSubscriber(
+				"voxel_grid_kinect/output", PointCloud2._TYPE);
 
 		kinectSub.addMessageListener(new MessageListener<PointCloud2>() {
 			@Override
@@ -79,7 +64,8 @@ public class Brake extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<PointCloud2> xtionSub = node.newSubscriber("voxel_grid_xtion/output", PointCloud2._TYPE);
+		Subscriber<PointCloud2> xtionSub = node.newSubscriber(
+				"voxel_grid_xtion/output", PointCloud2._TYPE);
 
 		xtionSub.addMessageListener(new MessageListener<PointCloud2>() {
 			@Override
@@ -88,7 +74,8 @@ public class Brake extends AbstractNodeMain {
 			}
 		});
 
-		Subscriber<GoalStatusArray> moveBaseSub = node.newSubscriber("move_base/status", GoalStatusArray._TYPE);
+		Subscriber<GoalStatusArray> moveBaseSub = node.newSubscriber(
+				"move_base/status", GoalStatusArray._TYPE);
 
 		moveBaseSub.addMessageListener(new MessageListener<GoalStatusArray>() {
 			@Override
@@ -96,18 +83,18 @@ public class Brake extends AbstractNodeMain {
 				lastMoveBase = System.nanoTime();
 			}
 		});
-
+		
 		Subscriber<Odometry> odomSub = node.newSubscriber("b21/odom", Odometry._TYPE);
 
 		odomSub.addMessageListener(new MessageListener<Odometry>() {
 			@Override
 			public void onNewMessage(Odometry update) {
-				lastOdom = System.nanoTime();
 				lastOdomMsg = update;
 			}
 		});
 
-		Subscriber<Twist> velSub = node.newSubscriber("b21/cmd_vel", Twist._TYPE);
+		Subscriber<Twist> velSub = node.newSubscriber("b21/cmd_vel",
+				Twist._TYPE);
 
 		velSub.addMessageListener(new MessageListener<Twist>() {
 			@Override
@@ -125,66 +112,26 @@ public class Brake extends AbstractNodeMain {
 		while (true) {
 			if (System.nanoTime() - brakesLastApplied > BRAKE_THRESHOLD) {
 				if (System.nanoTime() - lastLaser > LASER_FAILURE_THRESHOLD) {
-
-					System.out.println("Laser messages not received for over 500ms. Braking.");
-					brake();
-				}
-
-				else if (System.nanoTime() - lastPTU > PTU_FAILURE_THRESHOLD) {
-
-					System.out.println("PTU messages not received for over 500ms. Braking.");
-					brake();
+					brake("Laser messages not received for over 500ms. Braking.");
 				}
 
 				else if (System.nanoTime() - lastKinect > KINECT_FAILURE_THRESHOLD) {
-
-					System.out.println("Kinect messages not received for over 1000ms. Braking.");
-					brake();
+					brake("Kinect messages not received for over 1000ms. Braking.");
 				}
 
 				else if (System.nanoTime() - lastXtion > XTION_FAILURE_THRESHOLD) {
-
-					System.out.println("Xtion messages not received for over 1000ms. Braking.");
-					brake();
+					brake("Xtion messages not received for over 1000ms. Braking.");
 				}
 
-				// else if (lastBump != null && lastBump.getPoints().size() > 0)
-				// {
-				//
-				// System.out.println("Crashed! Braking.");
-				// brake();
-				// }
-
 				else if (System.nanoTime() - lastMoveBase > MOVE_BASE_FAILURE_THRESHOLD) {
-
-					System.out.println("Move_base messages not received for over 500ms. Braking.");
-					brake();
+					brake("Move_base messages not received for over 500ms. Braking.");
 					velPub.publish(velPub.newMessage());
 				}
 
 				else if (System.nanoTime() - lastVel > VEL_FAILURE_THRESHOLD) {
 					if (lastOdomMsg == null) {
-						System.out.println("No odometry messages received. Braking.");
-						brake();
+						brake("No odometry messages received. Braking.");
 					}
-
-					// else if ((System.nanoTime() - lastOdom <
-					// ODOM_FAILURE_THRESHOLD)
-					// && (lastOdomMsg.getTwist().getTwist().getLinear().getX()
-					// > 0.04
-					// || lastOdomMsg.getTwist().getTwist().getLinear().getX() <
-					// -0.04
-					// || lastOdomMsg.getTwist().getTwist().getLinear().getY() >
-					// 0.04
-					// || lastOdomMsg.getTwist().getTwist().getLinear().getY() <
-					// -0.04
-					// || lastOdomMsg.getTwist().getTwist().getAngular().getZ()
-					// > 0.09 || lastOdomMsg.getTwist().getTwist()
-					// .getAngular().getZ() < -0.09)) {
-					// System.out.println("No velocity messages received for over 500ms but the robot is still moving. Braking.");
-					// brake();
-					// velPub.publish(velPub.newMessage());
-					// }
 				}
 			}
 			try {
@@ -195,10 +142,19 @@ public class Brake extends AbstractNodeMain {
 		}
 	}
 
-	private void brake() {
+	private void brake(String message) {
+		feedback(message);
 		Bool newBrakeMsg = brakePub.newMessage();
 		newBrakeMsg.setData(true);
 		brakePub.publish(newBrakeMsg);
 		brakesLastApplied = System.nanoTime();
+	}
+
+	private void feedback(String message) {
+		System.out.println(message);
+
+		std_msgs.String feedbackMsg = feedbackPub.newMessage();
+		feedbackMsg.setData(message);
+		feedbackPub.publish(feedbackMsg);
 	}
 }
