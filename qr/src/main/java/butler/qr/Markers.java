@@ -29,6 +29,7 @@ import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import std_msgs.Bool;
 import std_msgs.Int32;
 import visualization_msgs.InteractiveMarkerFeedback;
 import visualization_msgs.InteractiveMarkerInit;
@@ -48,6 +49,7 @@ public class Markers extends AbstractNodeMain {
 			"/home/sean/ROS/butler_workspace/butler/qr/locations.xml");
 	private Publisher<MoveBaseActionGoal> goalPub, baseGoalPub;
 	private Publisher<std_msgs.String> feedbackPub;
+	private Publisher<Bool> resultPub;
 	private Log log;
 
 	@Override
@@ -65,6 +67,7 @@ public class Markers extends AbstractNodeMain {
 		
 		feedbackPub = node.newPublisher("crowded_nav/feedback",
 				std_msgs.String._TYPE);
+		resultPub = node.newPublisher("crowded_nav/result", Bool._TYPE);
 
 		goalPub = node.newPublisher("butler/goal", MoveBaseActionGoal._TYPE);
 
@@ -230,7 +233,8 @@ public class Markers extends AbstractNodeMain {
 					goalPub.publish(goalMsg);
 				}
 			} else {
-				log.error("Failed to find marker " + id);
+				feedback("Failed to find marker " + id);
+				result(false);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -244,5 +248,11 @@ public class Markers extends AbstractNodeMain {
 		std_msgs.String feedbackMsg = feedbackPub.newMessage();
 		feedbackMsg.setData(message);
 		feedbackPub.publish(feedbackMsg);
+	}
+	
+	private void result(boolean result) {
+		Bool resultMsg = resultPub.newMessage();
+		resultMsg.setData(result);
+		resultPub.publish(resultMsg);
 	}
 }

@@ -26,6 +26,7 @@ import org.ros.node.topic.Subscriber;
 
 import std_msgs.Bool;
 import std_msgs.Empty;
+import std_msgs.Float32;
 import talker.Speach;
 import talker.SpeachRequest;
 import talker.SpeachResponse;
@@ -49,11 +50,12 @@ public class Queue extends AbstractNodeMain {
 	private Publisher<Bool> recoveryBehaviourPub, resultPub;
 	private Publisher<PoseArray> recoveryPlanPub;
 	private Publisher<std_msgs.String> feedbackPub;
+	private Publisher<Float32> distancePub;
 
 	private ArrayList<QueueGoal> goals = new ArrayList<QueueGoal>();
 	private MoveBaseActionGoal baseGoal;
 	private static int goalNumber = 0;
-	private boolean recoveryAttempted = false;
+	private boolean recoveryAttempted = false, stopped = false;
 	private PoseWithCovarianceStamped currentLocation;
 	private Path currentRecoveryPlan = null;
 	private int recoveryNumber = 90;
@@ -180,23 +182,20 @@ public class Queue extends AbstractNodeMain {
 		feedbackPub = node.newPublisher("crowded_nav/feedback",
 				std_msgs.String._TYPE);
 		resultPub = node.newPublisher("crowded_nav/result", Bool._TYPE);
+		distancePub = node.newPublisher("crowded_nav/distance", Float32._TYPE);
 
-		try {
-			Thread.sleep(2000);
-			cancelAllGoals();
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
-		while(true){
+		sleep(2000);
+		cancelAllGoals();
+		sleep(2000);
+
+		while (true) {
 			mainLoop();
 			sleep(100);
 		}
 
 	}
-	
-	private void mainLoop(){
+
+	private void mainLoop() {
 		if (goals.size() > 0
 				&& goals.get(0).getStatus() == QueueGoal.STOPPED_STATUS) {
 			executeGoal();
@@ -215,8 +214,7 @@ public class Queue extends AbstractNodeMain {
 				recoveryLoop = 1;
 				succeeded = true;
 
-				System.out.println(goals.get(0).getGoal().getGoalId()
-						.getId()
+				System.out.println(goals.get(0).getGoal().getGoalId().getId()
 						+ " " + gs.getGoalId().getId());
 
 				if (goals.get(0).getType() != QueueGoal.RECOVERY_TYPE) {
@@ -232,15 +230,13 @@ public class Queue extends AbstractNodeMain {
 			}
 		}
 
-		if (!succeeded && goals.size() > 0
-				&& lastStatus.getStatusList().size() > 0&& lastStatus.getStatusList().get(0).getStatus() == GoalStatus.SUCCEEDED) {
-			System.out
-					.println("Waiting for move_base... "
-							+ goals.get(0).getGoal().getGoalId()
-									.getId()
-							+ " "
-							+ lastStatus.getStatusList().get(0).getGoalId()
-									.getId());
+		if (!succeeded
+				&& goals.size() > 0
+				&& lastStatus.getStatusList().size() > 0
+				&& lastStatus.getStatusList().get(0).getStatus() == GoalStatus.SUCCEEDED) {
+			System.out.println("Waiting for move_base... "
+					+ goals.get(0).getGoal().getGoalId().getId() + " "
+					+ lastStatus.getStatusList().get(0).getGoalId().getId());
 		}
 
 		if (goals.size() > 0
@@ -265,6 +261,8 @@ public class Queue extends AbstractNodeMain {
 				}
 			}
 		}
+
+		publishDistanceToGoal();
 	}
 
 	private void cancelAllGoals() {
@@ -281,7 +279,7 @@ public class Queue extends AbstractNodeMain {
 
 	private void addQRGoal(MoveBaseActionGoal goal) {
 		if (goals.size() == 0) {
-
+			stopped = false;
 			goal.getGoalId().setId(goalNumber + "");
 			goalNumber++;
 			QueueGoal newQueueGoal = new QueueGoal(goal, QueueGoal.QR_TYPE);
@@ -309,52 +307,49 @@ public class Queue extends AbstractNodeMain {
 	}
 
 	private void executeGoal() {
-		feedback("Sending goal to move_base");
-		cancelAllGoals();
-		if (goals.get(0).getType() == QueueGoal.RECOVERY_TYPE) {
-			setRecoveryBehaviour(false);
-		} else {
-			setRecoveryBehaviour(true);
-		}
+		if (!stopped) {
+			feedback("Sending goal to move_base");
+			cancelAllGoals();
 
-		goalPub.publish(goals.get(0).getGoal());
-		goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
+			goalPub.publish(goals.get(0).getGoal());
+			goals.get(0).setStatus(QueueGoal.RUNNING_STATUS);
 
-		// Check move_base doesn't ignore the goal
+			// Check move_base doesn't ignore the goal
 
-		sleep(1000);
+			sleep(1000);
 
-		boolean succeeded = false;
-		for (int attempts = 0; attempts < 3; attempts++) {
-			try {
-				if (!checkMoveBaseForGoal(goals.get(0).getGoal().getGoalId()
-						.getId())) {
-					feedback("move_base has ignored the goal, checking again in 5 seconds...");
-					sleep(5000);
-				} else {
-					succeeded = true;
-					break;
+			boolean succeeded = false;
+			for (int attempts = 0; attempts < 3; attempts++) {
+				try {
+					if (!checkMoveBaseForGoal(goals.get(0).getGoal()
+							.getGoalId().getId())) {
+						feedback("move_base has ignored the goal, checking again in 5 seconds...");
+						sleep(5000);
+					} else {
+						succeeded = true;
+						break;
+					}
+
+					if (!checkMoveBaseForGoal(goals.get(0).getGoal()
+							.getGoalId().getId())) {
+						feedback("move_base is still ignoring the goal, resending...");
+						goalPub.publish(goals.get(0).getGoal());
+
+						sleep(5000);
+					} else {
+						succeeded = true;
+						break;
+					}
+				} catch (Exception e) {
+					System.out.println("Exception: " + goals.size() + " "
+							+ lastStatus.getStatusList().size());
 				}
-
-				if (!checkMoveBaseForGoal(goals.get(0).getGoal().getGoalId()
-						.getId())) {
-					feedback("move_base is still ignoring the goal, resending...");
-					goalPub.publish(goals.get(0).getGoal());
-
-					sleep(5000);
-				} else {
-					succeeded = true;
-					break;
-				}
-			} catch (Exception e) {
-				System.out.println("Exception: " + goals.size() + " "
-						+ lastStatus.getStatusList().size());
 			}
-		}
 
-		if (!succeeded) {
-			feedback("move_base won't respond. Giving up.");
-			stop(false);
+			if (!succeeded) {
+				feedback("move_base won't respond. Giving up.");
+				stop(false);
+			}
 		}
 	}
 
@@ -372,105 +367,205 @@ public class Queue extends AbstractNodeMain {
 	}
 
 	private void executeRecovery() {
-
-		if (recoveryNumber == 90) {
-			makeRecoveryPlan();
-			feedback("Attempting recovery loop " + recoveryLoop + "...");
-		}
-
-		System.out.println("Attempting recovery... " + recoveryNumber + "%");
-		cancelAllGoals();
-		goals.get(0).setStatus(QueueGoal.STOPPED_STATUS);
-		MoveBaseActionGoal newGoalMsg = goalPub.newMessage();
-
-		Path path = currentRecoveryPlan;
-		System.out.println("Path length: " + path.getPoses().size());
-		System.out.println("Trying pose: "
-				+ (int) (path.getPoses().size() * 0.01 * recoveryNumber));
-
-		newGoalMsg
-				.getGoal()
-				.setTargetPose(
-						path.getPoses()
-								.get((int) (path.getPoses().size() * 0.01 * recoveryNumber)));
-
-		newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
-
-		newGoalMsg.getGoalId().setId(
-				goals.get(0).getGoal().getGoalId().getId() + "_rec_"
-						+ recoveryNumber);
-		Quaternion q = calculateQuaternion(newGoalMsg.getGoal().getTargetPose()
-				.getPose());
-		newGoalMsg.getGoal().getTargetPose().getPose().setOrientation(q);
-
-		PoseArray planMsg = butlerGoalPub.newMessage();
-		planMsg.getPoses().add(currentLocation.getPose().getPose());
-		planMsg.getPoses().add(newGoalMsg.getGoal().getTargetPose().getPose());
-		planMsg.getHeader().setFrameId(newGoalMsg.getGoalId().getId());
-		butlerGoalPub.publish(planMsg);
-
-		boolean publish = false;
-		validGoal = "";
-		invalidGoal = "";
-
-		for (int i = 0; i < 50; i++) {
-			System.out.println(validGoal + ":" + invalidGoal);
-			if (validGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
-				publish = true;
-				break;
-			} else if (invalidGoal.equalsIgnoreCase(newGoalMsg.getGoalId()
-					.getId())) {
-				break;
+		if (!stopped) {
+			if (recoveryNumber == 90) {
+				makeRecoveryPlan();
+				feedback("Attempting recovery loop " + recoveryLoop + "...");
 			}
 
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
+			System.out
+					.println("Attempting recovery... " + recoveryNumber + "%");
+			cancelAllGoals();
+			goals.get(0).setStatus(QueueGoal.STOPPED_STATUS);
+			MoveBaseActionGoal newGoalMsg = goalPub.newMessage();
 
-		if (publish) {
+			Path path = currentRecoveryPlan;
+			System.out.println("Path length: " + path.getPoses().size());
+			System.out.println("Trying pose: "
+					+ (int) (path.getPoses().size() * 0.01 * recoveryNumber));
+
+			newGoalMsg
+					.getGoal()
+					.setTargetPose(
+							path.getPoses()
+									.get((int) (path.getPoses().size() * 0.01 * recoveryNumber)));
+
+			newGoalMsg.getGoal().getTargetPose().getHeader().setFrameId("map");
+
+			newGoalMsg.getGoalId().setId(
+					goals.get(0).getGoal().getGoalId().getId() + "_rec_"
+							+ recoveryNumber);
+			Quaternion q = calculateQuaternion(newGoalMsg.getGoal()
+					.getTargetPose().getPose());
+			newGoalMsg.getGoal().getTargetPose().getPose().setOrientation(q);
+
+			PoseArray planMsg = butlerGoalPub.newMessage();
+			planMsg.getPoses().add(currentLocation.getPose().getPose());
+			planMsg.getPoses().add(
+					newGoalMsg.getGoal().getTargetPose().getPose());
+			planMsg.getHeader().setFrameId(newGoalMsg.getGoalId().getId());
+			butlerGoalPub.publish(planMsg);
+
+			boolean publish = false;
+			validGoal = "";
+			invalidGoal = "";
+
+			for (int i = 0; i < 50; i++) {
+				System.out.println(validGoal + ":" + invalidGoal);
+				if (validGoal.equalsIgnoreCase(newGoalMsg.getGoalId().getId())) {
+					publish = true;
+					break;
+				} else if (invalidGoal.equalsIgnoreCase(newGoalMsg.getGoalId()
+						.getId())) {
+					break;
+				}
+
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
+			if (publish && !stopped
+					&& !(recoveryNumber == 90 && recoveryAttempted)) {
+				synchronized (goalsLock) {
+					goals.add(0, new QueueGoal(newGoalMsg,
+							QueueGoal.RECOVERY_TYPE));
+					System.out.println("Publishing: "
+							+ newGoalMsg.getGoalId().getId());
+				}
+			}
+
+			System.out.println("New queue:");
+			for (QueueGoal qg : goals) {
+				Point p = qg.getGoal().getGoal().getTargetPose().getPose()
+						.getPosition();
+				System.out.println(p.getX() + " " + p.getY());
+			}
+			System.out.println();
+
+			if (recoveryNumber == 90 && recoveryAttempted) {
+				cancelAllGoals();
+
+				publishBaseLinkRotationMsg();
+				
+				sleep(1000);
+				speak("Excuse me");
+				sleep(5000);
+			}
+
+			if (recoveryNumber > 10) {
+				recoveryNumber -= 10;
+			} else {
+				recoveryNumber -= 2;
+
+				if (recoveryNumber == 8) {
+					if (recoveryLoop == MAX_RECOVERY_LOOPS) {
+						feedback("Attempted " + MAX_RECOVERY_LOOPS
+								+ " recovery loops. Aborting.");
+						stop(false);
+					} else {
+						recoveryNumber = 90;
+					}
+				}
+			}
+			recoveryAttempted = true;
+		}
+	}
+
+	private void publishMapRotationMsg() {
+		if (!stopped) {
 			synchronized (goalsLock) {
-				goals.add(0, new QueueGoal(newGoalMsg, QueueGoal.RECOVERY_TYPE));
-				System.out.println("Publishing: "
-						+ newGoalMsg.getGoalId().getId());
-			}
-		}
-
-		System.out.println("New queue:");
-		for (QueueGoal qg : goals) {
-			Point p = qg.getGoal().getGoal().getTargetPose().getPose()
-					.getPosition();
-			System.out.println(p.getX() + " " + p.getY());
-		}
-		System.out.println();
-
-		if (recoveryNumber == 90 && recoveryAttempted) {
-			speak("Excuse me");
-			try {
-				Thread.sleep(5000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-
-		if (recoveryNumber > 10) {
-			recoveryNumber -= 10;
-		} else {
-			recoveryNumber -= 2;
-
-			if (recoveryNumber == 0) {
-				if (recoveryLoop == MAX_RECOVERY_LOOPS) {
-					feedback("Attempted " + MAX_RECOVERY_LOOPS
-							+ " recovery loops. Aborting.");
-					stop(false);
-				} else {
-					recoveryNumber = 90;
+				try {
+					MoveBaseActionGoal rotateToFaceGoal = goalPub.newMessage();
+					rotateToFaceGoal
+							.getGoal()
+							.getTargetPose()
+							.getPose()
+							.setOrientation(
+									calculateQuaternion(goals.get(0).getGoal()
+											.getGoal().getTargetPose()
+											.getPose()));
+					rotateToFaceGoal
+							.getGoal()
+							.getTargetPose()
+							.getPose()
+							.getPosition()
+							.setX(currentLocation.getPose().getPose()
+									.getPosition().getX());
+					rotateToFaceGoal
+							.getGoal()
+							.getTargetPose()
+							.getPose()
+							.getPosition()
+							.setY(currentLocation.getPose().getPose()
+									.getPosition().getY());
+					rotateToFaceGoal.getGoalId().setId(goalNumber + "_rotate");
+					rotateToFaceGoal.getGoal().getTargetPose().getHeader()
+							.setFrameId("map");
+					goals.add(0, new QueueGoal(rotateToFaceGoal,
+							QueueGoal.RECOVERY_TYPE));
+				} catch (Exception e) {
+					System.out.println("Exceptionb: " + goals.size() + " "
+							+ goals.get(0).getGoal().getGoalId().getId());
 				}
 			}
 		}
-		recoveryAttempted = true;
+	}
+
+	// TODO
+	private void publishBaseLinkRotationMsg() {
+		System.out.println("In pblrm");
+		if (!stopped) {
+			synchronized (goalsLock) {
+				try {
+					MoveBaseActionGoal rotateToFaceGoal = goalPub.newMessage();
+
+					double z = (currentLocation.getPose().getPose()
+							.getOrientation().getZ());
+					double currentAngle = Math.toDegrees(2 * Math.asin(z));
+					Quaternion goal = calculateQuaternion(goals.get(0)
+							.getGoal().getGoal().getTargetPose().getPose());
+					double goalAngle = Math
+							.toDegrees(2 * Math.asin(goal.getZ()));
+					double rotateAngle = goalAngle - currentAngle;
+
+					if (rotateAngle > 180) {
+						rotateAngle -= 360;
+					}
+					if (rotateAngle < -180) {
+						rotateAngle += 360;
+					}
+
+					System.out.println("Rotating to face goal: " + rotateAngle);
+
+					double wGoal = Math.cos(Math.toRadians(rotateAngle) / 2);
+					double zGoal = Math.sin(Math.toRadians(rotateAngle) / 2);
+
+					Quaternion q = goalPub.newMessage().getGoal()
+							.getTargetPose().getPose().getOrientation();
+
+					q.setW(wGoal);
+					q.setZ(zGoal);
+
+					System.out.println("Quaternion: z:" + zGoal + ", w:"
+							+ wGoal);
+
+					rotateToFaceGoal.getGoal().getTargetPose().getPose()
+							.setOrientation(q);
+
+					rotateToFaceGoal.getGoal().getTargetPose().getHeader()
+							.setFrameId("base_link");
+					rotateToFaceGoal.getGoalId().setId(goalNumber + "_rotate_bl");
+					goals.add(0, new QueueGoal(rotateToFaceGoal,
+							QueueGoal.RECOVERY_TYPE));
+				} catch (Exception e) {
+					System.out.println("Exceptionb: " + goals.size() + " "
+							+ goals.get(0).getGoal().getGoalId().getId());
+				}
+			}
+		}
 	}
 
 	private void speak(String message) {
@@ -528,7 +623,7 @@ public class Queue extends AbstractNodeMain {
 	private Quaternion calculateQuaternion(Pose pose) {
 		double z = (currentLocation.getPose().getPose().getOrientation().getZ());
 		double currentAngle = Math.toDegrees(2 * Math.asin(z));
-		double rAngle = 360.0 - currentAngle;
+
 		double x1 = currentLocation.getPose().getPose().getPosition().getX(), y1 = currentLocation
 				.getPose().getPose().getPosition().getY(), x2 = pose
 				.getPosition().getX(), y2 = pose.getPosition().getY();
@@ -579,11 +674,7 @@ public class Queue extends AbstractNodeMain {
 				}
 				break;
 			} else {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
+				sleep(100);
 			}
 		}
 
@@ -619,6 +710,8 @@ public class Queue extends AbstractNodeMain {
 
 	private void stop(boolean succeeded) {
 		feedback("Stopping...");
+		stopped = true;
+		recoveryAttempted = false;
 		result(succeeded);
 		synchronized (goalsLock) {
 			while (goals.size() > 0) {
@@ -631,5 +724,38 @@ public class Queue extends AbstractNodeMain {
 		}
 
 		cancelAllGoals();
+	}
+
+	private void publishDistanceToGoal() {
+		if (currentLocation != null) {
+			double currentX = currentLocation.getPose().getPose().getPosition()
+					.getX();
+			double currentY = currentLocation.getPose().getPose().getPosition()
+					.getY();
+			double goalX = Double.NaN, goalY = Double.NaN;
+			boolean publish = false;
+
+			for (QueueGoal goal : goals) {
+				if (goal.getType() == QueueGoal.QR_TYPE) {
+					goalX = goal.getGoal().getGoal().getTargetPose().getPose()
+							.getPosition().getX();
+					goalY = goal.getGoal().getGoal().getTargetPose().getPose()
+							.getPosition().getY();
+					publish = true;
+					break;
+				}
+			}
+
+			if (publish) {
+				Float32 distanceMsg = distancePub.newMessage();
+
+				double dx = Math.abs(currentX - goalX);
+				double dy = Math.abs(currentY - goalY);
+
+				distanceMsg.setData((float) Math.sqrt(dx * dx + dy * dy));
+
+				distancePub.publish(distanceMsg);
+			}
+		}
 	}
 }
