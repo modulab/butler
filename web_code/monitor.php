@@ -136,7 +136,7 @@ $average = $total / $number;
   if ($order_no!=-1) {
 	echo "<h1>I'm working on it!</h1>";
   
-	echo "<h3> Your are <b class=\"text-info\">position $position</b> in the queue</h3>";
+	echo "<h3> You are <b class=\"text-info\">position $position</b> in the queue</h3>";
 	if ($is_active==1) {
 	  echo "<h4>I've picked your order up, and am on my way :-)</h4>";
 	} else if ($is_delayed==1) {
