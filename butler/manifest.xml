@@ -14,7 +14,9 @@
   <depend package="costmap_2d" />
   <depend package="navfn" />
   <depend package="talker" />
-  <depend package="geometry_msgs" />
+
+  <depend package="sensor_msgs" />
+  <depend package="rospy" />
 
 </package>
 
