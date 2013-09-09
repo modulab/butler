@@ -12,7 +12,7 @@ import gobject
 
 class App(object):
     def __init__(self):
-        self.node = rospy.init_node("service_manager")
+        self.node = rospy.init_node("service_manager",  anonymous=True)
         
         self._init_gui()
 
