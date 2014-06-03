@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package>
+  <name>service_manager</name>
+  <version>0.0.0</version>
+  <description>The service_manager package
+     service_manager - A GUI to provide the person managing the drinks stand
+	 and overview of the orders.
+  </description>
+
+
+  <maintainer email="chris@todo.todo">chris</maintainer>
+  <author>Chris Burbridge</author>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>drink_sensor</build_depend>
+  <build_depend>rospy</build_depend>
+  <run_depend>drink_sensor</run_depend>
+  <run_depend>rospy</run_depend>
+
+
+  <export>
+
+  </export>
+</package>
