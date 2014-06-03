@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <name>web_connector</name>
+  <version>0.0.1</version>
+  <description>The web_connector package: provides services to access the web interface ordering system.</description>
+
+  <maintainer email="chris@todo.todo">chris</maintainer>
+  <author>Chris Burbridge</author>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>message_runtime</run_depend>
+
+
+  <export>
+
+  </export>
+</package>

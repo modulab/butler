@@ -5,9 +5,8 @@ ROS node that exposes the methods of WebInterface class as services over the ROS
 """
 
 import rospy
-#import rospy
 
-from connector import *
+from web_connector.connector import *
 
 from web_connector.srv import *
 from web_connector.msg import Order
