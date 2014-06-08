@@ -1,6 +1,0 @@
-free_thresh: 0.196
-image: research_lab3.pgm
-negate: 0
-occupied_thresh: 0.65
-origin: [-37.15, -42.199999999999996, 0.0]
-resolution: 0.05

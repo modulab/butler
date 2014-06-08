@@ -1,5 +1,0 @@
-<launch>
-   <include file="$(find butler)/launch/openni_kinect2.launch" />
-   <include file="$(find butler)/launch/openni_xtion1.launch" />
-   <include file="$(find butler)/launch/voxel.launch" />
-</launch>

@@ -1,3 +1,0 @@
-<launch>
-  <node pkg="talker" type="node.py" name="talker" output="screen" respawn="true" />
-</launch>

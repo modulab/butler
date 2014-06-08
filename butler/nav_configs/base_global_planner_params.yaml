@@ -1,9 +1,0 @@
-NavfnROS:
-  default_tolerance: 0.4
-  allow_unknown: false
-
-planner:
-  allow_unknown: false
-
-planner_no_sensor:
-  allow_unknown: false
