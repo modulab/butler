@@ -1,3 +1,0 @@
-<launch>
-  <node pkg="init_ptu" type="execute" args="InitPTU" name="init_ptu" respawn="true" />
-</launch>
