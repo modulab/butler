@@ -1,4 +1,0 @@
-<launch>
-  <node pkg="brake" type="brake_server.py" name="brake_server" output="screen" />
-  <node pkg="brake" type="execute" name="brake" args="butler.brake.Brake" output="screen" respawn="true" />
-</launch>
