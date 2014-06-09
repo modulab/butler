@@ -22,7 +22,7 @@ import sm_global_data as application
 State that checks that the operator loaded enough beer.
 """
 class CheckCorrectLoading(smach.State):
-    def __init__(self, max_beers=6):
+    def __init__(self, max_beers=4):
         smach.State.__init__(self,
             outcomes    = ['succeeded', 'failed']
         )

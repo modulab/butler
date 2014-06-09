@@ -27,7 +27,7 @@ covered by the already loaded beers. In this case, the outcome could be
 'not_enough_beers', and max_beers is taken to be the number of beers in the caddy.
 """
 class GetAndMarkOrders(smach.State):
-    def __init__(self, max_beers=6, already_carrying=False):
+    def __init__(self, max_beers=4, already_carrying=False):
         smach.State.__init__(self,
             outcomes    = ['succeeded', 'no_orders', 'not_enough_beers']
         )
@@ -75,7 +75,7 @@ class GetAndMarkOrders(smach.State):
         
         # select which orders will be processed
         order_weights = {'1beer': 1, '2beer': 2, '3beer': 3,}
-        MAX_LOAD = 6
+        MAX_LOAD = 4
         service_station =  orders[0].station_id
         carrying = 0
         this_round = []
